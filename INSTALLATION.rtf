@@ -1,0 +1,203 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf320
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red0\green63\blue160;}
+\margl1440\margr1440\vieww20860\viewh21500\viewkind0
+\deftab720
+\pard\pardeftab720\ql\qnatural
+
+\f0\fs24 \cf0 \
+The following instructions are provided as a guideline to configuring a Mac computer running Mac OS X v10.6.x (Snow Leopard) for use with EPFImporter. Although EPFImporter is intended as a cross-platform tool, detailed instructions for configuring other systems for its use are outside the scope of this document. If you encounter issues with installation, please consult a system administrator who is familiar with your system configuration.\
+\
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 Software Requirements
+\b0 \
+\pard\tx720\pardeftab720\ql\qnatural
+\cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 MySQL 5.1 or later\
+\pard\pardeftab720\ql\qnatural
+
+\b0 \cf0 To verify that MySQL is installed, type: \
+\pard\pardeftab720\ql\qnatural
+
+\f1 \cf0 mysql --version\
+\pard\pardeftab720\ql\qnatural
+
+\f0 \cf0 or
+\f1 \
+/usr/local/mysql/bin/mysql --version\
+
+\f0 \
+To install MySQL:\
+\pard\tx400\pardeftab720\ql\qnatural
+\cf0 1.	Download the MySQL package for Mac OS X (32 or 64 bit, depending on your computer): {\field{\*\fldinst{HYPERLINK "http://dev.mysql.com/downloads/mysql/5.1.html#macosx-dmg"}}{\fldrslt http://dev.mysql.com/downloads/mysql/5.1.html#macosx-dmg}}.\
+2.	Install everything in the package in this order: mysql, MySQLStartupItem, and (optional) MySQL preference pane.\
+This installs mysql into 
+\f1 /usr/local/mysql/.
+\f0 \
+3.	Open MySQL.\
+\pard\pardeftab720\ql\qnatural
+\cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 Python 2.6 or later
+\b0  (already installed on Snow Leopard)\
+To verify that Python is installed, type:  \
+\pard\pardeftab720\ql\qnatural
+
+\f1 \cf0 python --version
+\f0 \
+\
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 MySQLdb Python module
+\b0  (Mac/UNIX/Linux: {\field{\*\fldinst{HYPERLINK "http://sourceforge.net/projects/mysql-python/"}}{\fldrslt \cf2 \ul \ulc2 http://sourceforge.net/projects/mysql-python/}}; Windows: {\field{\*\fldinst{HYPERLINK "http://www.codegood.com/"}}{\fldrslt \cf2 \ul \ulc2 http://www.codegood.com}})\
+\
+To verify that the MySQLdb module is properly installed, type:\
+\pard\pardeftab720\ql\qnatural
+
+\f1 \cf0 python \
+>>> import MySQLdb\
+\pard\pardeftab720\ql\qnatural
+
+\f0\i \cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\i0 \cf0 To install MySQLdb:\
+\pard\tx300\tx400\pardeftab720\ql\qnatural
+\cf0 1.	Install the module using the instructions in the README that is included with the Python MySQLdb module download. Note that MySQL must be installed first; the module requires certain MySQL files to be present in order to configure itself properly.\
+\
+2.	Within the extracted tar file, edit site.cfg and make sure that mysql_config is pointing to the correct location. If you installed MySQL using the above instructions, you need to use this line:\
+
+\f1 mysql_config = /usr/local/mysql/bin/mysql_config\
+
+\f0 \
+3.	Run:\
+
+\f1 python setup.py build\
+sudo python setup.py install\
+\pard\pardeftab720\ql\qnatural
+
+\f0 \cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 Verifying the installation\
+\pard\pardeftab720\ql\qnatural
+
+\b0 \cf0 To verify that everything is installed, type:
+\b \
+\pard\pardeftab720\ql\qnatural
+
+\f1\b0 \cf0 /usr/local/mysql/bin/mysql --version\
+python --version
+\f0 \
+
+\f1 /usr/bin/python \
+>>> import MySQLdb
+\f0 \
+\
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 Database Setup
+\b0 \
+For more information about this section, go to: \
+\pard\pardeftab720\ql\qnatural
+{\field{\*\fldinst{HYPERLINK "http://dev.mysql.com/doc/refman/5.1/en/tutorial.html"}}{\fldrslt \cf2 \ul \ulc2 http://dev.mysql.com/doc/refman/5.1/en/tutorial.html}}\
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\b0 \cf0 Immediately after install, your mysql database can be accessed by using user root and an empty password.  If you're using an existing mysql installation, you'll need to use the appropriate user and password in the instructions below.
+\b \
+\
+Creating an EPF database\
+
+\b0 You may, instead of this step, put EPF data into an existing database. For more information, contact your database administrator.\
+\
+To create an EPF database, type:\
+\pard\pardeftab720\ql\qnatural
+
+\f1 \cf0 mysqladmin --user=root -p create epf\
+\pard\pardeftab720\ql\qnatural
+
+\f0 \cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 Creating an EPF database user
+\b0 \
+For more information about this section, go to: \
+\pard\pardeftab720\ql\qnatural
+{\field{\*\fldinst{HYPERLINK "http://dev.mysql.com/doc/refman/5.1/en/adding-users.html"}}{\fldrslt \cf0 http://dev.mysql.com/doc/refman/5.1/en/adding-users.html}}
+\b \
+\pard\pardeftab720\ql\qnatural
+
+\b0 \cf0 \
+The following lines create an "epfimporter" user with password "epf123" who has access to all tables in the "epf" database. Contact your database administrator if you need assistance.\
+\
+To create an EPF database user, type:\
+\pard\pardeftab720\ql\qnatural
+
+\f1 \cf0 mysql --user=root mysql -p\
+mysql> CREATE USER 'epfimporter'@'localhost' IDENTIFIED BY 'epf123';\
+mysql> GRANT ALL PRIVILEGES ON epf.* TO 'epfimporter'@'localhost' WITH GRANT OPTION;\
+mysql> CREATE USER 'epfimporter'@'%' IDENTIFIED BY 'epf123';\
+mysql> GRANT ALL PRIVILEGES ON epf.* TO 'epfimporter'@'%' WITH GRANT OPTION;\
+mysql> commit;\
+\pard\pardeftab720\ql\qnatural
+
+\f0 \cf0 \
+If you're just getting started with mysql, the following may be helpful as well.  Contact your database administrator if you need assistance.\
+\
+\pard\pardeftab720\ql\qnatural
+
+\f1 \cf0 mysql> CREATE USER 'admin'@'localhost';\
+mysql> GRANT RELOAD,PROCESS ON *.* TO 'admin'@'localhost';\
+\
+\pard\pardeftab720\ql\qnatural
+
+\f0\b \cf0 Setting default character encoding to utf-8
+\b0 \
+\pard\pardeftab720\ql\qnatural
+
+\f1 \cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\f0 \cf0 EPF files are exported using the utf-8 character encoding. To maintain this encoding on import, the default character set in the database must be changed to utf-8. \
+\
+To set the default character encoding to utf-8:\
+\pard\tx300\pardeftab720\li400\fi-400\ql\qnatural
+\cf0 1.	Connect to the epf database.\
+2.	Run the following: 
+\f1 \
+\pard\pardeftab720\ql\qnatural
+\cf0 mysql> ALTER DATABASE DEFAULT CHARSET 'utf8';\
+\pard\pardeftab720\ql\qnatural
+
+\f0 \cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 Verifying user privledges\
+\pard\pardeftab720\ql\qnatural
+
+\b0 \cf0 To verify that the user privileges type:
+\b \
+\pard\pardeftab720\ql\qnatural
+
+\f1\b0 \cf0 mysql --user=epfimporter epf -p\
+mysql> show tables;\
+Empty set (0.00 sec)\
+\
+mysql> \
+\pard\pardeftab720\ql\qnatural
+
+\f0 \cf0 \
+\pard\pardeftab720\ql\qnatural
+
+\b \cf0 Configuring EPFImporter
+\b0 \
+\
+Edit EPFConfig.json and EPFFlatConfig.json to correspond to the MySQL user that you have configured for EPFImporter.\
+}
