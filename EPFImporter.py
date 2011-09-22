@@ -39,6 +39,7 @@
 
 import EPFIngester
 import MySQLdb
+import psycopg2
 import os
 import sys
 import datetime
@@ -121,6 +122,7 @@ def doImport(directoryPath,
             dbUser='epfimporter',
             dbPassword='epf123',
             dbName='epf',
+            dbType='mysql',
             whiteList=[r'.*?'],
             blackList=[],
             tablePrefix=None,
@@ -207,6 +209,7 @@ def doImport(directoryPath,
                 dbUser=dbUser,
                 dbPassword=dbPassword,
                 dbName=dbName,
+                dbType=dbType,
                 recordDelim=recordDelim,
                 fieldDelim=fieldDelim)
         except Exception, e:
@@ -244,6 +247,7 @@ def resumeImport(currentDict,
         dbUser='epfimporter',
         dbPassword='epf123',
         dbName='epf',
+        dbType='mysql',
         skipKeyViolators=False,
         recordDelim='\x02\n',
         fieldDelim='\x01'):
@@ -265,6 +269,7 @@ def resumeImport(currentDict,
         dbUser=dbUser,
         dbPassword=dbPassword,
         dbName=dbName,
+        dbType=dbType,
         whiteList=wList,
         blackList=bList,
         recordDelim=recordDelim,
@@ -294,6 +299,7 @@ def main():
             dbUser='epfimporter',
             dbPassword='epf123',
             dbName='epf',
+            dbType='mysql',
             allowExtensions=False,
             tablePrefix='epf',
             whiteList=[r'.*?'],
@@ -307,6 +313,7 @@ def main():
             dbUser='epfimporter',
             dbPassword='epf123',
             dbName='epf',
+            dbType='mysql',
             allowExtensions=True,
             tablePrefix='epfflat',
             whiteList=[r'.*?'],
@@ -316,7 +323,7 @@ def main():
         _dumpDict(flatOptions, FLAT_CONFIG_PATH)
 
     #Command-line parsing
-    usage = """usage: %prog [-fxrak] [-d db_host] [-u db_user] [-p db_password] [-n db_name]
+    usage = """usage: %prog [-fxrak] [-D db_type] [-d db_host] [-u db_user] [-p db_password] [-n db_name]
     [-s record_separator] [-t field_separator] [-w regex [-w regex2 [...]]]
     [-b regex [-b regex2 [...]]] source_directory [source_directory2 ...]"""
 
@@ -333,6 +340,8 @@ def main():
         help="""The user's password for the database""")
     op.add_option('-n', '--dbname', dest='dbName',
         help="""The name of the database to connect to""")
+    op.add_option('-D', '--dbtype', dest='dbType',
+        help="""The type of the database to connect to ('mysql' or 'postgresql')""")
     op.add_option('-s', '--recordseparator', dest='recordSep',
         help="""The string separating records in the file""")
     op.add_option('-t', '--fieldseparator', dest='fieldSep',
@@ -403,6 +412,7 @@ def main():
             dbUser=options.dbUser,
             dbPassword=options.dbPassword,
             dbName=options.dbName,
+            dbType=options.dbType,
             skipKeyViolators=options.skipKeyViolators,
             recordDelim=recordSep,
             fieldDelim=fieldSep)
@@ -427,6 +437,7 @@ def main():
                 dbUser=options.dbUser,
                 dbPassword=options.dbPassword,
                 dbName=options.dbName,
+                dbType=options.dbType,
                 whiteList=wList,
                 blackList=bList,
                 allowExtensions=allowExtensions,

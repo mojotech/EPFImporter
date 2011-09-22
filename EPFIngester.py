@@ -37,6 +37,7 @@
 
 import EPFParser
 import MySQLdb
+import psycopg2
 import os
 import datetime
 import warnings
@@ -65,6 +66,7 @@ class Ingester(object):
             dbUser='epfimporter',
             dbPassword='epf123',
             dbName='epf',
+            dbType='mysql',
             recordDelim='\x02\n',
             fieldDelim='\x01'):
         """
@@ -81,6 +83,9 @@ class Ingester(object):
         self.dbUser = dbUser
         self.dbPassword = dbPassword
         self.dbName = dbName
+        self.dbType = dbType
+        self.isPostgresql = (dbType == "postgresql")
+        self.isMysql = (dbType == "mysql")
         self.lastRecordIngested = -1
         self.parser = EPFParser.Parser(filePath, recordDelim=recordDelim, fieldDelim=fieldDelim)
         self.startTime = None
