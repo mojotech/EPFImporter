@@ -1,38 +1,38 @@
 # Copyright (c) 2010 Apple  Inc. All rights reserved.
 
-# IMPORTANT:  This Apple software is supplied to you by Apple Inc. ("Apple") in 
-# consideration of your agreement to the following terms, and your use, 
-# installation, modification or redistribution of this Apple software 
-# constitutes acceptance of these terms.  If you do not agree with these terms, 
+# IMPORTANT:  This Apple software is supplied to you by Apple Inc. ("Apple") in
+# consideration of your agreement to the following terms, and your use,
+# installation, modification or redistribution of this Apple software
+# constitutes acceptance of these terms.  If you do not agree with these terms,
 # please do not use, install, modify or redistribute this Apple software.
 
-# In consideration of your agreement to abide by the following terms, and subject 
-# to these terms, Apple grants you a personal, non-exclusive license, under Apple's 
-# copyrights in this original Apple software (the "Apple Software"), to use, 
-# reproduce, modify and redistribute the Apple Software, with or without 
-# modifications, in source and/or binary forms; provided that if you redistribute 
-# the Apple Software in its entirety and without modifications, you must retain 
-# this notice and the following text and disclaimers in all such redistributions 
-# of the Apple Software.  Neither the name, trademarks, service marks or logos of 
-# Apple Inc. may be used to endorse or promote products derived from the Apple 
-# Software without specific prior written permission from Apple.  Except as 
-# expressly stated in this notice, no other rights or licenses, express or implied, 
-# are granted by Apple herein, including but not limited to any patent rights that 
-# may be infringed by your derivative works or by other works in which the Apple 
+# In consideration of your agreement to abide by the following terms, and subject
+# to these terms, Apple grants you a personal, non-exclusive license, under Apple's
+# copyrights in this original Apple software (the "Apple Software"), to use,
+# reproduce, modify and redistribute the Apple Software, with or without
+# modifications, in source and/or binary forms; provided that if you redistribute
+# the Apple Software in its entirety and without modifications, you must retain
+# this notice and the following text and disclaimers in all such redistributions
+# of the Apple Software.  Neither the name, trademarks, service marks or logos of
+# Apple Inc. may be used to endorse or promote products derived from the Apple
+# Software without specific prior written permission from Apple.  Except as
+# expressly stated in this notice, no other rights or licenses, express or implied,
+# are granted by Apple herein, including but not limited to any patent rights that
+# may be infringed by your derivative works or by other works in which the Apple
 # Software may be incorporated.
 
-# The Apple Software is provided by Apple on an "AS IS" basis.  APPLE MAKES NO 
-# WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED 
-# WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY AND FITNESS FOR A PARTICULAR 
-# PURPOSE, REGARDING THE APPLE SOFTWARE OR ITS USE AND OPERATION ALONE OR IN 
-# COMBINATION WITH YOUR PRODUCTS. 
+# The Apple Software is provided by Apple on an "AS IS" basis.  APPLE MAKES NO
+# WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+# WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE, REGARDING THE APPLE SOFTWARE OR ITS USE AND OPERATION ALONE OR IN
+# COMBINATION WITH YOUR PRODUCTS.
 
-# IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL OR 
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
-# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-# ARISING IN ANY WAY OUT OF THE USE, REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION 
-# OF THE APPLE SOFTWARE, HOWEVER CAUSED AND WHETHER UNDER THEORY OF CONTRACT, TORT 
-# (INCLUDING NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN 
+# IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# ARISING IN ANY WAY OUT OF THE USE, REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION
+# OF THE APPLE SOFTWARE, HOWEVER CAUSED AND WHETHER UNDER THEORY OF CONTRACT, TORT
+# (INCLUDING NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import EPFParser
@@ -57,9 +57,9 @@ class Ingester(object):
     #Supress warnings that occur when we do a 'DROP TABLE IF EXISTS'; we expect these,
     #so there's no point in cluttering up the output with them.
     warnings.filterwarnings('ignore', 'Unknown table.*')
-    
+
     def __init__(self,
-            filePath, 
+            filePath,
             tablePrefix=None,
             dbHost='localhost',
             dbUser='epfimporter',
@@ -92,7 +92,7 @@ class Ingester(object):
         self.lastRecordCheck = 0
         self.lastTimeCheck = datetime.datetime.now()
 
-        
+
     def updateStatusDict(self):
         self.statusDict['fileName'] = self.fileName
         self.statusDict['filePath'] = self.filePath
@@ -102,7 +102,7 @@ class Ingester(object):
         self.statusDict['abortTime'] = (str(self.abortTime) if self.abortTime else None)
         self.statusDict['didAbort'] = self.didAbort
 
-        
+
     def ingest(self, skipKeyViolators=False):
         """
         Perform a full or incremental ingest, depending on self.parser.exportMode
@@ -112,11 +112,11 @@ class Ingester(object):
         else:
             self.ingestFull(skipKeyViolators=skipKeyViolators)
 
-        
+
     def ingestFull(self, skipKeyViolators=False):
         """
         Perform a full ingest of the file at self.filePath.
-        
+
         This is done as follows:
         1. Create a new table with a temporary name
         2. Populate the new table
@@ -139,8 +139,8 @@ class Ingester(object):
         self.endTime = datetime.datetime.now()
         self.updateStatusDict()
         LOGGER.info("Full ingest of %s took %s", self.tableName, str(self.endTime - self.startTime))
-        
-    
+
+
     def ingestFullResume(self, fromRecord=0, skipKeyViolators=False):
         """
         Resume an interrupted full ingest, continuing from fromRecord.
@@ -159,12 +159,12 @@ class Ingester(object):
         endTime = datetime.datetime.now()
         ts = str(self.endTime - self.startTime)
         LOGGER.info("Resumed full ingest of %s took %s", self.tableName, ts[:len(ts)-4])
-    
+
 
     def ingestIncremental(self, fromRecord=0, skipKeyViolators=False):
         """
         Update the table with the data in the file at filePath.
-        
+
         If the file to ingest has < 500,000 records, we do a simple REPLACE operation
         on the existing table. If it's larger than that, we use the following 3-step process:
         1. Create a temporary table, and populate it exactly as though it were a Full ingest
@@ -183,7 +183,7 @@ class Ingester(object):
             fileColCount = len(self.parser.columnNames)
             assert (tableColCount <= fileColCount) #It's possible for the existing table
             #to have fewer columns than the file we're importing, but it should never have more.
-            
+
             if fileColCount > tableColCount: #file has "extra" columns
                 LOGGER.warn("File contains additional columns not in the existing table. These will not be imported.")
                 self.parser.columnNames = self.parser.columnNames[:tableColCount] #trim the columnNames
@@ -192,15 +192,15 @@ class Ingester(object):
             s = ("Resuming" if fromRecord else "Beginning")
             LOGGER.info("%s incremental ingest of %s (%i records)", s, self.tableName, self.parser.recordsExpected)
             self.startTime = datetime.datetime.now()
-            
+
             #Different ingest techniques are faster depending on the size of the input.
             #If there are a large number of records, it's much faster to do a prune-and-merge technique;
             #for fewer records, it's faster to update the existing table.
             try:
                 if self.parser.recordsExpected < 500000: #update table in place
                     self._populateTable(self.tableName,
-                                    resumeNum=fromRecord, 
-                                    isIncremental=True, 
+                                    resumeNum=fromRecord,
+                                    isIncremental=True,
                                     skipKeyViolators=skipKeyViolators)
                 else: #Import as full, then merge the proper records into a new table
                     self._createTable(self.incTableName)
@@ -212,7 +212,7 @@ class Ingester(object):
                     LOGGER.info("Applying primary key constraints...")
                     self._applyPrimaryKeyConstraints(self.unionTableName)
                     self._renameAndDrop(self.unionTableName, self.tableName)
-            
+
             except MySQLdb.Error, e:
                 #LOGGER.error("Error %d: %s", e.args[0], e.args[1])
                 LOGGER.error("Fatal error encountered while ingesting '%s'", self.filePath)
@@ -226,35 +226,35 @@ class Ingester(object):
             ts = str(self.endTime - self.startTime)
             LOGGER.info("Incremental ingest of %s took %s", self.tableName, ts[:len(ts)-4])
         self.updateStatusDict()
-                
-        
+
+
     def connect(self):
         """
         Establish a connection to the database, returning the connection object.
         """
         conn = MySQLdb.connect(
-        charset='utf8', 
-        host=self.dbHost, 
-        user=self.dbUser, 
-        passwd=self.dbPassword, 
+        charset='utf8',
+        host=self.dbHost,
+        user=self.dbUser,
+        passwd=self.dbPassword,
         db=self.dbName)
         return conn
-            
-    
+
+
     def tableExists(self, tableName=None, connection=None):
         """
         Convenience method which returns True if tableName exists in the db, False if not.
-        
+
         If tableName is None, uses self.tableName.
-        
+
         If a connection object is specified, this method uses it and does not close it;
         if not, it creates one using connect(), uses it, and then closes it.
         """
-        
+
         exStr = """SELECT COUNT(*) FROM information_schema.tables
                     WHERE table_schema = %s
                     AND table_name = %s"""
-                
+
         tableName = (tableName if tableName else self.tableName)
         conn = (connection if connection else self.connect())
         cur = conn.cursor()
@@ -265,14 +265,14 @@ class Ingester(object):
         if not connection:
             conn.close()
         return doesExist
-            
-    
+
+
     def columnCount(self, tableName=None, connection=None):
         """
         Convenience method for returning the number of columns in tableName.
-        
+
         If tableName is None, uses self.tableName.
-        
+
         If a connection object is specified, this method uses it and does not close it;
         if not, it creates one using connect(), uses it, and then closes it.
         """
@@ -287,11 +287,11 @@ class Ingester(object):
             conn.close()
         return colCount
 
-    
+
     def _createTable(self, tableName):
         """
         Connect to the db and create a table named self.tableName_TMP, dropping previous one if it exists.
-        
+
         Also adds primary key constraint to the new table.
         """
         conn = self.connect()
@@ -307,14 +307,14 @@ class Ingester(object):
         #set the primary key
         conn.close()
         self._applyPrimaryKeyConstraints(tableName)
-        
+
 
     def _applyPrimaryKeyConstraints(self, tableName):
         """
         Apply the primary key specified in parser to tableName.
         """
         pkLst = self.parser.primaryKey
-         
+
         if pkLst:
             conn = self.connect()
             cur = conn.cursor()
@@ -322,13 +322,13 @@ class Ingester(object):
             exStr = """ALTER TABLE %s ADD CONSTRAINT PRIMARY KEY (%s)""" % (tableName, pkStr)
             cur.execute(exStr)
             conn.close()
-        
+
 
     def _escapeRecords(self, recordList, connection=None):
         """
         Appropriately escape the contents of a list of records (as returned by the parser)
         so that there are no illegal characters (e.g. internal quotes) in the SQL query.
-        
+
         This is done here rather than in the parser because it uses the literal() method of the
         connection object.
         """
@@ -338,12 +338,12 @@ class Ingester(object):
             escRec = [conn.literal(aField) for aField in aRec]
             escapedRecords.append(escRec)
         return escapedRecords
-        
+
 
     def _populateTable(self, tableName, resumeNum=0, isIncremental=False, skipKeyViolators=False):
         """
         Populate tableName with data fetched by the parser, first advancing to resumePos.
-        
+
         For Full imports, if skipKeyViolators is True, any insertions which would violate the primary key constraint
         will be skipped and won't log errors.
         """
@@ -352,10 +352,10 @@ class Ingester(object):
         ignoreString = ("IGNORE" if (skipKeyViolators and not isIncremental) else "")
         exStrTemplate = """%s %s INTO %s %s VALUES %s"""
         colNamesStr = "(%s)" % (", ".join(self.parser.columnNames))
-        
+
         self.parser.seekToRecord(resumeNum) #advance to resumeNum
         conn = self.connect()
-        
+
         while (True):
             #By default, we concatenate 200 inserts into a single INSERT statement.
             #a large batch size per insert improves performance, until you start hitting max_packet_size issues.
@@ -363,10 +363,10 @@ class Ingester(object):
             records = self.parser.nextRecords(maxNum=200)
             if (not records):
                 break
-            
+
             escapedRecords = self._escapeRecords(records) #This will sanitize the records
             stringList = ["(%s)" % (", ".join(aRecord)) for aRecord in escapedRecords]
-            
+
             cur = conn.cursor()
             colVals = unicode(", ".join(stringList), 'utf-8')
             exStr = exStrTemplate % (commandString, ignoreString, tableName, colNamesStr, colVals)
@@ -388,12 +388,12 @@ class Ingester(object):
 
         conn.close()
 
-        
+
     def _checkProgress(self, recordGap=5000, timeGap=datetime.timedelta(0, 120, 0)):
         """
         Checks whether recordGap or more records have been ingested since the last check;
         if so, checks whether timeGap seconds have elapsed since the last check.
-        
+
         If both checks pass, returns self.lastRecordIngested; otherwise returns None.
         """
         if self.lastRecordIngested - self.lastRecordCheck >= recordGap:
@@ -403,7 +403,7 @@ class Ingester(object):
                 self.lastRecordCheck = self.lastRecordIngested
                 return self.lastRecordCheck
         return None
-        
+
 
     def _dropTable(self, tableName):
         """A convenience method that just connects, drops tableName if it exists, and disconnects"""
@@ -411,7 +411,7 @@ class Ingester(object):
         cur = conn.cursor()
         cur.execute("""DROP TABLE IF EXISTS %s""" % tableName)
         conn.close()
-        
+
 
     def _renameAndDrop(self, sourceTable, targetTable):
         """
@@ -436,8 +436,8 @@ class Ingester(object):
         #Drop sourceTable so it's not hanging around
         #drop the old table
         cur.execute("""DROP TABLE IF EXISTS %s""" % targetOld)
-        
-        
+
+
     def _createUnionTable(self):
         """
         After incremental ingest data has been written to self.incTableName, union the pruned
@@ -449,7 +449,7 @@ class Ingester(object):
         exStr = """CREATE TABLE %s %s""" % (self.unionTableName, self._incrementalUnionString())
         cur.execute(exStr)
         conn.close()
-        
+
 
     def _incrementalWhereClause(self):
         """
@@ -462,23 +462,23 @@ class Ingester(object):
         whereClause = "WHERE %s.export_date <= %s.export_date AND %s" % (self.tableName, self.incTableName, joinedString)
         return whereClause
 
-        
+
     def _incrementalSelectString(self):
         """
         Creates and returns the appropriate SELECT statement used when pruning the target table
         during an incremental ingest
         """
         whereClause = self._incrementalWhereClause()
-        selectString = ("SELECT * FROM %s WHERE 0 = (SELECT COUNT(*) FROM %s %s)" % 
+        selectString = ("SELECT * FROM %s WHERE 0 = (SELECT COUNT(*) FROM %s %s)" %
             (self.tableName, self.incTableName, whereClause))
         return selectString
 
-        
+
     def _incrementalUnionString(self):
         """
         Creates and returns the appropriate UNION string used when merging the pruned table
         with the temporary incrmental table.
-        
+
         The ingest and pruning process should preclude any dupes, so we can use ALL, which should be faster.
         """
         selectString = self._incrementalSelectString()

@@ -1,38 +1,38 @@
 # Copyright (c) 2010 Apple  Inc. All rights reserved.
 
-# IMPORTANT:  This Apple software is supplied to you by Apple Inc. ("Apple") in 
-# consideration of your agreement to the following terms, and your use, 
-# installation, modification or redistribution of this Apple software 
-# constitutes acceptance of these terms.  If you do not agree with these terms, 
+# IMPORTANT:  This Apple software is supplied to you by Apple Inc. ("Apple") in
+# consideration of your agreement to the following terms, and your use,
+# installation, modification or redistribution of this Apple software
+# constitutes acceptance of these terms.  If you do not agree with these terms,
 # please do not use, install, modify or redistribute this Apple software.
 
-# In consideration of your agreement to abide by the following terms, and subject 
-# to these terms, Apple grants you a personal, non-exclusive license, under Apple's 
-# copyrights in this original Apple software (the "Apple Software"), to use, 
-# reproduce, modify and redistribute the Apple Software, with or without 
-# modifications, in source and/or binary forms; provided that if you redistribute 
-# the Apple Software in its entirety and without modifications, you must retain 
-# this notice and the following text and disclaimers in all such redistributions 
-# of the Apple Software.  Neither the name, trademarks, service marks or logos of 
-# Apple Inc. may be used to endorse or promote products derived from the Apple 
-# Software without specific prior written permission from Apple.  Except as 
-# expressly stated in this notice, no other rights or licenses, express or implied, 
-# are granted by Apple herein, including but not limited to any patent rights that 
-# may be infringed by your derivative works or by other works in which the Apple 
+# In consideration of your agreement to abide by the following terms, and subject
+# to these terms, Apple grants you a personal, non-exclusive license, under Apple's
+# copyrights in this original Apple software (the "Apple Software"), to use,
+# reproduce, modify and redistribute the Apple Software, with or without
+# modifications, in source and/or binary forms; provided that if you redistribute
+# the Apple Software in its entirety and without modifications, you must retain
+# this notice and the following text and disclaimers in all such redistributions
+# of the Apple Software.  Neither the name, trademarks, service marks or logos of
+# Apple Inc. may be used to endorse or promote products derived from the Apple
+# Software without specific prior written permission from Apple.  Except as
+# expressly stated in this notice, no other rights or licenses, express or implied,
+# are granted by Apple herein, including but not limited to any patent rights that
+# may be infringed by your derivative works or by other works in which the Apple
 # Software may be incorporated.
 
-# The Apple Software is provided by Apple on an "AS IS" basis.  APPLE MAKES NO 
-# WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED 
-# WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY AND FITNESS FOR A PARTICULAR 
-# PURPOSE, REGARDING THE APPLE SOFTWARE OR ITS USE AND OPERATION ALONE OR IN 
-# COMBINATION WITH YOUR PRODUCTS. 
+# The Apple Software is provided by Apple on an "AS IS" basis.  APPLE MAKES NO
+# WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+# WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE, REGARDING THE APPLE SOFTWARE OR ITS USE AND OPERATION ALONE OR IN
+# COMBINATION WITH YOUR PRODUCTS.
 
-# IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL OR 
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
-# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-# ARISING IN ANY WAY OUT OF THE USE, REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION 
-# OF THE APPLE SOFTWARE, HOWEVER CAUSED AND WHETHER UNDER THEORY OF CONTRACT, TORT 
-# (INCLUDING NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN 
+# IN NO EVENT SHALL APPLE BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# ARISING IN ANY WAY OUT OF THE USE, REPRODUCTION, MODIFICATION AND/OR DISTRIBUTION
+# OF THE APPLE SOFTWARE, HOWEVER CAUSED AND WHETHER UNDER THEORY OF CONTRACT, TORT
+# (INCLUDING NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
@@ -46,17 +46,17 @@ class SubstringNotFoundException(Exception):
     """
     Exception thrown when a comment character or other tag is not found in a situation where it's required.
     """
-    
+
 
 class Parser(object):
     """
     Parses an EPF file.
-    
+
     During initialization, all the file db metadata is stored, and the
     file seek position is set to the beginning of the first data record.
     The Parser object can then be used directly by an Ingester to create
     and populate the table.
-    
+
     typeMap is a dictionary mapping datatype strings in the file to corresponding
     types for the database being used. The default map is for MySQL.
     """
@@ -84,9 +84,9 @@ class Parser(object):
         self.commentChar = Parser.commentChar
         self.recordDelim = recordDelim
         self.fieldDelim = fieldDelim
-        
+
         self.eFile = open(filePath, mode="rU") #this will throw an exception if filePath does not exist
-        
+
         #Seek to the end and parse the recordsWritten line
         self.eFile.seek(-40, os.SEEK_END)
         str = self.eFile.read() #reads from -40 to end of file
@@ -97,18 +97,18 @@ class Parser(object):
         #Extract the column names
         line1 = self.nextRowString(ignoreComments=False)
         self.columnNames = self.splitRow(line1, requiredPrefix=self.commentChar)
-        
+
         #We'll now grab the rest of the header data, without assuming a particular order
         primStart = self.commentChar+Parser.primaryKeyTag
         dtStart = self.commentChar+Parser.dataTypesTag
         exStart = self.commentChar+Parser.exportModeTag
-        
+
         #Grab the next 6 lines, which should include all the header comments
         firstRows=[]
         for j in range(6):
             firstRows.append(self.nextRowString(ignoreComments=False))
             firstRows = [aRow for aRow in firstRows if aRow] #strip None rows (possible if the file is < 6 rows)
-        
+
         #Loop through the rows, extracting the header info
         for aRow in firstRows:
             if aRow.startswith(primStart):
@@ -131,30 +131,30 @@ class Parser(object):
                 self.numberColumns.append(j)
         #Build a dictionary of column names to data types
         self.typeMap = dict(zip(self.columnNames, self.dataTypes))
-        
-    
+
+
     def setSeekPos(self, pos=0):
         """
         Sets the underlying file's seek position.
-        
+
         This is useful for resuming a partial ingest that was interrupted for some reason.
         """
         self.eFile.seek(pos)
- 
-    
+
+
     def getSeekPos(self):
         """
         Gets the underlying file's seek position.
         """
         return self.eFile.tell()
-        
+
     seekPos = property(fget=getSeekPos, fset=setSeekPos, doc="Seek position of the underlying file")
-    
+
 
     def seekToRecord(self, recordNum):
         """
         Set the seek position to the beginning of the recordNumth record.
-        
+
         Seeks to the beginning of the file if recordNum <=0,
         or the end if it's greater than the number of records.
         """
@@ -165,14 +165,14 @@ class Parser(object):
         for j in range(recordNum):
             self.advanceToNextRecord()
 
-            
+
     def nextRowString(self, ignoreComments=True):
         """
         Returns (as a string) the next row of data (as delimited by self.recordDelim),
         ignoring comments if ignoreComments is True.
-        
+
         Leaves the delimiters in place.
-        
+
         Unfortunately Python doesn't allow line-based reading with user-supplied line separators
         (http://bugs.python.org/issue1152248), so we use normal line reading and then concatenate
         when we hit 0x02.
@@ -196,8 +196,8 @@ class Parser(object):
         else:
             rowString = "".join(lst) #concatenate the lines into a single string, which is the full content of the row
             return rowString
-            
-            
+
+
     def advanceToNextRecord(self):
         """
         Performs essentially the same task as nextRowString, but without constructing or returning anything.
@@ -212,13 +212,13 @@ class Parser(object):
             if (ln.find(self.recordDelim) != -1): #last textual line of this record
                 break
         self.latestRecordNum += 1
-        
-   
+
+
     def splitRow(self, rowString, requiredPrefix=None):
         """
         Given rowString, strips requiredPrefix and self.recordDelim,
         then splits on self.fieldDelim, returning the resulting list.
-        
+
         If requiredPrefix is not present in the row, throws a SubstringNotFound exception
         """
         if (requiredPrefix):
@@ -230,7 +230,7 @@ class Parser(object):
         str = rowString.partition(self.recordDelim)[0]
         return str.split(self.fieldDelim)
 
-    
+
     def nextRecord(self):
         """
         Returns the next row of data as a list, or None if we're out of data.
@@ -241,7 +241,7 @@ class Parser(object):
             rec = self.splitRow(rowString)
             rec = rec[:len(self.columnNames)] #if there are more data records than column names,
             #trim any surplus records via a slice
-            
+
             #replace empty strings with NULL
             for i in range(len(rec)):
                 val = rec[i]
@@ -258,8 +258,8 @@ class Parser(object):
             return rec
         else:
             return None
-                
-        
+
+
     def nextRecords(self, maxNum=100):
         """
         Returns the next maxNum records (or fewer if EOF) as a list of lists.
@@ -271,8 +271,8 @@ class Parser(object):
                 break
             records.append(lst)
         return records
-                
-        
+
+
     def nextRecordDict(self):
         """
         Returns the next row of data as a dictionary, keyed by the column names.
