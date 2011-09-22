@@ -87,7 +87,10 @@ class Ingester(object):
         self.isPostgresql = (dbType == "postgresql")
         self.isMysql = (dbType == "mysql")
         self.lastRecordIngested = -1
-        self.parser = EPFParser.Parser(filePath, recordDelim=recordDelim, fieldDelim=fieldDelim)
+        if self.isPostgresql:
+            self.parser = EPFParser.Parser(filePath, typeMap={"VARCHAR(1000)":"TEXT", "VARCHAR(4000)":"TEXT", "CLOB":"LONGTEXT", "DATETIME":"TIMESTAMP", "LONGTEXT":"TEXT"}, recordDelim=recordDelim, fieldDelim=fieldDelim)
+        else:
+            self.parser = EPFParser.Parser(filePath, recordDelim=recordDelim, fieldDelim=fieldDelim)
         self.startTime = None
         self.endTime = None
         self.abortTime = None
@@ -133,7 +136,7 @@ class Ingester(object):
             self._createTable(self.tmpTableName)
             self._populateTable(self.tmpTableName, skipKeyViolators=skipKeyViolators)
             self._renameAndDrop(self.tmpTableName, self.tableName)
-        except MySQLdb.Error, e:
+        except (MySQLdb.Error, psycopg2.Error), e:
             LOGGER.exception("Fatal error encountered while ingesting '%s'", self.filePath)
             LOGGER.error("Last record ingested before failure: %d", self.lastRecordIngested)
             self.abortTime = datetime.datetime.now()
@@ -156,7 +159,7 @@ class Ingester(object):
         try:
             self._populateTable(self.tmpTableName, resumeNum=fromRecord, skipKeyViolators=skipKeyViolators)
             self._renameAndDrop(self.tmpTableName, self.tableName)
-        except MySQLdb.Error, e:
+        except (MySQLdb.Error, psycopg2.Error), e:
             #LOGGER.error("Error %d: %s", e.args[0], e.args[1])
             LOGGER.error("Error encountered while ingesting '%s'", self.filePath)
             LOGGER.error("Last record ingested before failure: %d", self.lastRecordIngested)
@@ -218,7 +221,7 @@ class Ingester(object):
                     self._applyPrimaryKeyConstraints(self.unionTableName)
                     self._renameAndDrop(self.unionTableName, self.tableName)
 
-            except MySQLdb.Error, e:
+            except (MySQLdb.Error, psycopg2.Error), e:
                 #LOGGER.error("Error %d: %s", e.args[0], e.args[1])
                 LOGGER.error("Fatal error encountered while ingesting '%s'", self.filePath)
                 LOGGER.error("Last record ingested before failure: %d", self.lastRecordIngested)
@@ -237,12 +240,20 @@ class Ingester(object):
         """
         Establish a connection to the database, returning the connection object.
         """
-        conn = MySQLdb.connect(
-        charset='utf8',
-        host=self.dbHost,
-        user=self.dbUser,
-        passwd=self.dbPassword,
-        db=self.dbName)
+        if self.dbType == "postgresql":
+            conn = psycopg2.connect(
+                host=self.dbHost,
+                user=self.dbUser,
+                password=self.dbPassword,
+                database=self.dbName)
+        else:
+            conn = MySQLdb.connect(
+                charset='utf8',
+                host=self.dbHost,
+                user=self.dbUser,
+                passwd=self.dbPassword,
+                db=self.dbName)
+
         return conn
 
 
@@ -310,6 +321,8 @@ class Ingester(object):
         exStr = """CREATE TABLE %s (%s)""" % (tableName, paramStr)
         cur.execute(exStr) #create the table in the database
         #set the primary key
+        if self.isPostgresql:
+            conn.commit()
         conn.close()
         self._applyPrimaryKeyConstraints(tableName)
 
@@ -324,8 +337,13 @@ class Ingester(object):
             conn = self.connect()
             cur = conn.cursor()
             pkStr = ", ".join(pkLst)
-            exStr = """ALTER TABLE %s ADD CONSTRAINT PRIMARY KEY (%s)""" % (tableName, pkStr)
+            if self.isPostgresql:
+                exStr = """ALTER TABLE %s ADD CONSTRAINT %s_pk PRIMARY KEY (%s)""" % (tableName, tableName, pkStr)
+            else:
+                exStr = """ALTER TABLE %s ADD CONSTRAINT PRIMARY KEY (%s)""" % (tableName, pkStr)
             cur.execute(exStr)
+            if self.isPostgresql:
+                conn.commit()
             conn.close()
 
 
@@ -339,8 +357,12 @@ class Ingester(object):
         """
         conn = (connection if connection else self.connect())
         escapedRecords = []
+        cur = conn.cursor()
         for aRec in recordList:
-            escRec = [conn.literal(aField) for aField in aRec]
+            if self.isMysql:
+                escRec = [conn.literal(aField) for aField in aRec]
+            else:
+                escRec = [cur.mogrify("%s", (aField,)) for aField in aRec]
             escapedRecords.append(escRec)
         return escapedRecords
 
@@ -353,13 +375,26 @@ class Ingester(object):
         will be skipped and won't log errors.
         """
         #REPLACE is a MySQL extension which inserts if the key is new, or deletes and inserts if the key is a duplicate
-        commandString = ("REPLACE" if isIncremental else "INSERT")
-        ignoreString = ("IGNORE" if (skipKeyViolators and not isIncremental) else "")
+        commandString = ("REPLACE" if (isIncremental and self.isMysql) else "INSERT")
+        ignoreString = ("IGNORE" if (skipKeyViolators and not isIncremental and self.isMysql) else "")
         exStrTemplate = """%s %s INTO %s %s VALUES %s"""
         colNamesStr = "(%s)" % (", ".join(self.parser.columnNames))
 
         self.parser.seekToRecord(resumeNum) #advance to resumeNum
         conn = self.connect()
+        if self.isPostgresql:
+            cur = conn.cursor()
+            createRuleTemplate = """CREATE OR REPLACE RULE %s_on_duplicate_ignore AS ON INSERT TO %s WHERE EXISTS(SELECT 1 FROM %s WHERE (%s) = (%s)) DO INSTEAD NOTHING"""
+            pkLst = self.parser.primaryKey
+            if len(pkLst) > 0:
+                pk1 = ", ".join(pkLst)
+                pk2 = ", ".join(["NEW.%s" % pk for pk in pkLst])
+            else:
+                pk1 = "1"
+                pk2 = "1"
+
+            exStr = createRuleTemplate % (tableName, tableName, tableName, pk1, pk2)
+            cur.execute(exStr)
 
         while (True):
             #By default, we concatenate 200 inserts into a single INSERT statement.
@@ -381,15 +416,23 @@ class Ingester(object):
 
             try:
                 cur.execute(exStr)
-            except MySQLdb.Warning, e:
+            except (MySQLdb.Warning, psycopg2.Warning), e:
                 LOGGER.warning(str(e))
-            except MySQLdb.IntegrityError, e:
+            except (MySQLdb.IntegrityError, psycopg2.IntegrityError), e:
             #This is likely a primary key constraint violation; should only be hit if skipKeyViolators is False
-                LOGGER.error("Error %d: %s", e.args[0], e.args[1])
+                LOGGER.error(str(e))
             self.lastRecordIngested = self.parser.latestRecordNum
             recCheck = self._checkProgress()
             if recCheck:
                 LOGGER.info("...at record %i...", recCheck)
+
+        if self.isPostgresql:
+            dropRuleTemplate = """DROP RULE %s_on_duplicate_ignore ON %s"""
+            exStr = dropRuleTemplate % (tableName, tableName)
+            cur.execute(exStr)
+
+        if self.isPostgresql:
+            conn.commit()
 
         conn.close()
 
@@ -415,6 +458,8 @@ class Ingester(object):
         conn = self.connect()
         cur = conn.cursor()
         cur.execute("""DROP TABLE IF EXISTS %s""" % tableName)
+        if self.isPostgresql:
+            conn.commit()
         conn.close()
 
 
@@ -425,22 +470,43 @@ class Ingester(object):
         """
         conn = self.connect()
         cur = conn.cursor()
+        revert = False
         #first, rename the existing "real" table, so we can restore it if something goes wrong
         targetOld = targetTable + "_old"
         cur.execute("""DROP TABLE IF EXISTS %s""" % targetOld)
+        if self.isMysql:
+            exStr = """ALTER %s %s RENAME %s"""
+        else:
+            exStr = """ALTER %s %s RENAME TO %s"""
+
         if (self.tableExists(targetTable, connection=conn)):
-            cur.execute("""ALTER TABLE %s RENAME %s""" % (targetTable, targetOld))
+            cur.execute(exStr % ("TABLE", targetTable, targetOld))
+            if self.isPostgresql:
+                cur.execute(exStr % ("INDEX", targetTable+'_pk', targetOld+'_pk'))
         #now rename the new table to replace the old table
         try:
-            cur.execute("""ALTER TABLE %s RENAME %s""" % (sourceTable, targetTable))
+            cur.execute(exStr % ("TABLE", sourceTable, targetTable))
+            if self.isPostgresql:
+                cur.execute(exStr % ("INDEX", sourceTable+'_pk', targetTable+'_pk'))
         except MySQLdb.Error, e:
             LOGGER.error("Error %d: %s", e.args[0], e.args[1])
+            revert = True
+        except psycopg2.Error, e:
+            LOGGER.error("Error %s", e)
+            revert = True
+
+        if revert:
             LOGGER.error("Could not rename tmp table; reverting to original table (if it exists).")
             if (self.tableExists(targetOld, connection=conn)):
-                cur.execute("""ALTER TABLE %s RENAME %s""" % (targetOld, targetTable))
+                cur.execute(exStr % ("TABLE", targetOld, targetTable))
+                if self.isPostgresql:
+                    cur.execute(exStr % ("INDEX", targetOld+'_pk', targetTable+'_pk'))
         #Drop sourceTable so it's not hanging around
         #drop the old table
         cur.execute("""DROP TABLE IF EXISTS %s""" % targetOld)
+        if self.isPostgresql:
+            conn.commit()
+        conn.close()
 
 
     def _createUnionTable(self):
@@ -453,6 +519,8 @@ class Ingester(object):
         cur.execute("""DROP TABLE IF EXISTS %s""" % self.unionTableName)
         exStr = """CREATE TABLE %s %s""" % (self.unionTableName, self._incrementalUnionString())
         cur.execute(exStr)
+        if self.isPostgresql:
+            conn.commit()
         conn.close()
 
 

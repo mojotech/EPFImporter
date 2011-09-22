@@ -224,7 +224,7 @@ def doImport(directoryPath,
             filesLeft.remove(fName)
             filesImported.append(fName)
             _dumpDict(SNAPSHOT_DICT, SNAPSHOT_PATH)
-        except MySQLdb.Error, e:
+        except (MySQLdb.Error, psycopg2.Error), e:
             failedFiles.append(fName)
             _dumpDict(SNAPSHOT_DICT, SNAPSHOT_PATH)
             continue
