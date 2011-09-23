@@ -37,6 +37,9 @@
 # (INCLUDING NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF APPLE HAS BEEN
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import with_statement
+import logging
+import logging.handlers
 import EPFIngester
 import MySQLdb
 import psycopg2
@@ -44,7 +47,10 @@ import os
 import sys
 import datetime
 import re
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 import copy
 import optparse
 import ConfigParser
@@ -80,6 +86,7 @@ except OSError, e:
     if e.errno == errno.EEXIST:
         pass
 
+logging.logging = logging
 LOGGER_CONFIG_PATH = "./EPFLogger.conf"
 if not os.path.exists(LOGGER_CONFIG_PATH):
     #If the logging config file is missing, create one
@@ -106,7 +113,7 @@ if not os.path.exists(LOGGER_CONFIG_PATH):
     conf.set("logger_root", "handlers", "consoleHandler, fileHandler")
     conf.set("logger_root", "level", "INFO")
     conf.add_section("handlers")
-    conf.set("handlers", "keys", "consoleHandler, fileHandler")
+    conf.set("handlers", "keys", "consoleHandler,fileHandler")
     conf.add_section("loggers")
     conf.set("loggers", "keys", "root")
 
