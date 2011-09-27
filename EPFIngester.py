@@ -421,6 +421,9 @@ class Ingester(object):
             except (MySQLdb.IntegrityError, psycopg2.IntegrityError), e:
             #This is likely a primary key constraint violation; should only be hit if skipKeyViolators is False
                 LOGGER.error(str(e))
+            except (MySQLdb.Error, psycopg2.Error), e:
+                LOGGER.error("error executing %s" % exStr)
+                raise #re-raise the exception
             self.lastRecordIngested = self.parser.latestRecordNum
             recCheck = self._checkProgress()
             if recCheck:
