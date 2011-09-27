@@ -358,7 +358,11 @@ class Ingester(object):
         conn = (connection if connection else self.connect())
         escapedRecords = []
         cur = conn.cursor()
+        keys = {}
         for aRec in recordList:
+            marker = tuple([aRec[i] for i in self.parser.primaryKeyIndexes])
+            if marker in keys: continue
+            keys[marker] = 1
             if self.isMysql:
                 escRec = [conn.literal(aField) for aField in aRec]
             else:

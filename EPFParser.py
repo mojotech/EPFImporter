@@ -74,6 +74,7 @@ class Parser(object):
         self.dateTypes = ["DATE", "DATETIME", "TIME", "TIMESTAMP"]
         self.columnNames = []
         self.primaryKey = []
+        self.primaryKeyIndexes = []
         self.dataTypes = []
         self.exportMode = None
         self.dateColumns = [] #fields containing dates need special treatment; we'll cache the indexes here
@@ -119,6 +120,9 @@ class Parser(object):
             elif aRow.startswith(exStart):
                 self.exportMode = self.splitRow(aRow, requiredPrefix=exStart)[0]
         self.eFile.seek(0, os.SEEK_SET) #seek back to the beginning
+
+        for pk in self.primaryKey:
+            self.primaryKeyIndexes.append(self.columnNames.index(pk))
 
         #Convert any datatypes to mapped counterparts, and cache indexes of date/time types and number types
         for j in range(len(self.dataTypes)):
