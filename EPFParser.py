@@ -187,7 +187,6 @@ class Parser(object):
             ln = self.eFile.readline()
             if (not ln): #end of file
                 break
-            ln = unicode(ln, 'utf-8')
             if (isFirstLine and ignoreComments and ln.find(self.commentChar) == 0): #comment
                 continue
             lst.append(ln)
