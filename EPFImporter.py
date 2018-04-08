@@ -90,7 +90,7 @@ logging.logging = logging
 LOGGER_CONFIG_PATH = "./EPFLogger.conf"
 if not os.path.exists(LOGGER_CONFIG_PATH):
     # If the logging config file is missing, create one
-    conf = configparser.Rawconfigparser()
+    conf = configparser.RawConfigParser()
     conf.add_section("formatter_simpleFormatter")
     conf.set("formatter_simpleFormatter", "datefmt", "")
     conf.set("formatter_simpleFormatter", "format", "%(asctime)s [%(levelname)s]: %(message)s")
