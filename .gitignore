@@ -156,3 +156,5 @@ venv.bak/
 .mypy_cache/
 
 .idea/
+.~lock.DOCUMENTATION.rtf#
+.~lock.INSTALLATION.rtf#
