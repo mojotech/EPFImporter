@@ -86,6 +86,7 @@ except OSError as e:
     if e.errno == errno.EEXIST:
         pass
 
+
 logging.logging = logging
 LOGGER_CONFIG_PATH = "./EPFLogger.conf"
 if not os.path.exists(LOGGER_CONFIG_PATH):
