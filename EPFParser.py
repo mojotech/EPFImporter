@@ -187,7 +187,6 @@ class Parser(object):
             ln = self.eFile.readline()
             if (not ln): #end of file
                 break
-            ln = unicode(ln, 'utf-8')
             if (isFirstLine and ignoreComments and ln.find(self.commentChar) == 0): #comment
                 continue
             lst.append(ln)
@@ -229,7 +228,7 @@ class Parser(object):
             ix = rowString.find(requiredPrefix)
             if (ix != 0):
                 expl = "Required prefix '%s' was not found in '%s'" % (requiredPrefix, rowString)
-                raise SubstringNotFoundException, expl
+                raise (SubstringNotFoundException, expl)
             rowString = rowString.partition(requiredPrefix)[2]
         str = rowString.partition(self.recordDelim)[0]
         return str.split(self.fieldDelim)
