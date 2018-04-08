@@ -47,17 +47,17 @@ import os
 import sys
 import datetime
 import re
+
 try:
     import json
 except ImportError:
     import simplejson as json
 import copy
 import optparse
-import ConfigParser
+import configparser
 import logging
 import logging.config
 import errno
-
 
 VERSION = "1.2.1"
 DESCRIPTION = """EPFImporter is a tool for importing EPF files into a database."""
@@ -65,10 +65,10 @@ DESCRIPTION = """EPFImporter is a tool for importing EPF files into a database."
 CONFIG_PATH = "./EPFConfig.json"
 FLAT_CONFIG_PATH = "./EPFFlatConfig.json"
 
-#Snapshot is updated throughout the import; it is used for resuming interrupted imports
+# Snapshot is updated throughout the import; it is used for resuming interrupted imports
 global SNAPSHOT_PATH, SNAPSHOT_DICT
 SNAPSHOT_PATH = "./EPFSnapshot.json"
-SNAPSHOT_DICT = {"tablePrefix":None, "dirsToImport":[], "dirsLeft":[], "currentDict":{}}
+SNAPSHOT_DICT = {"tablePrefix": None, "dirsToImport": [], "dirsLeft": [], "currentDict": {}}
 
 # FULL_STATUS_PATH = "./EPFStatusFull.json"
 # INCREMENTAL_STATUS_PATH = "./EPFStatusIncremental.json"
@@ -79,25 +79,25 @@ SNAPSHOT_DICT = {"tablePrefix":None, "dirsToImport":[], "dirsLeft":[], "currentD
 #        "incremental":(INCREMENTAL_STATUS_DICT, INCREMENTAL_STATUS_PATH)}
 
 
-#Create a directory for rotating logs
+# Create a directory for rotating logs
 try:
     os.mkdir("EPFLogs")
-except OSError, e:
+except OSError as e:
     if e.errno == errno.EEXIST:
         pass
 
 logging.logging = logging
 LOGGER_CONFIG_PATH = "./EPFLogger.conf"
 if not os.path.exists(LOGGER_CONFIG_PATH):
-    #If the logging config file is missing, create one
-    conf = ConfigParser.RawConfigParser()
+    # If the logging config file is missing, create one
+    conf = configparser.Rawconfigparser()
     conf.add_section("formatter_simpleFormatter")
     conf.set("formatter_simpleFormatter", "datefmt", "")
     conf.set("formatter_simpleFormatter", "format", "%(asctime)s [%(levelname)s]: %(message)s")
     conf.add_section("handler_fileHandler")
-    #Set log to rotate every 24 hours and keep the last 120 logs before rotating.
-    #We use seconds ('S') to force the date stamp to include minutes and seconds.
-    #We will actually 'manually' roll over the log before each import.
+    # Set log to rotate every 24 hours and keep the last 120 logs before rotating.
+    # We use seconds ('S') to force the date stamp to include minutes and seconds.
+    # We will actually 'manually' roll over the log before each import.
     conf.set("handler_fileHandler", "args", "('EPFLogs/EPFLog.log', 'S', 86400, 120)")
     conf.set("handler_fileHandler", "formatter", "simpleFormatter")
     conf.set("handler_fileHandler", "level", "INFO")
@@ -125,18 +125,18 @@ LOGGER = logging.getLogger()
 
 
 def doImport(directoryPath,
-            dbHost='localhost',
-            dbUser='epfimporter',
-            dbPassword='epf123',
-            dbName='epf',
-            dbType='mysql',
-            whiteList=[r'.*?'],
-            blackList=[],
-            tablePrefix=None,
-            allowExtensions=False,
-            skipKeyViolators=False,
-            recordDelim='\x02\n',
-            fieldDelim='\x01'):
+             dbHost='localhost',
+             dbUser='epfimporter',
+             dbPassword='epf123',
+             dbName='epf',
+             dbType='mysql',
+             whiteList=[r'.*?'],
+             blackList=[],
+             tablePrefix=None,
+             allowExtensions=False,
+             skipKeyViolators=False,
+             recordDelim='\x02\n',
+             fieldDelim='\x01'):
     """
     Perform a full import of the EPF files in the directory specified by directoryPath.
 
@@ -158,18 +158,18 @@ def doImport(directoryPath,
 
     Returns a list of any files for which the import failed (empty if all succeeded)
     """
-    #Exclude files with a dot (for example, the invisible .DSStore files HFS+ uses)
+    # Exclude files with a dot (for example, the invisible .DSStore files HFS+ uses)
     if not allowExtensions:
         blackList.append(r'.*\..*?')
 
-    wListRe = (r"|".join(whiteList) if whiteList else r"$a^") #The latter can never match anything
-    bListRe = (r"|".join(blackList) if blackList else r"$a^") #The latter can never match anything
+    wListRe = (r"|".join(whiteList) if whiteList else r"$a^")  # The latter can never match anything
+    bListRe = (r"|".join(blackList) if blackList else r"$a^")  # The latter can never match anything
     wMatcher = re.compile(wListRe)
     bMatcher = re.compile(bListRe)
 
     dirPath = os.path.abspath(directoryPath)
     fileList = os.listdir(dirPath)
-    #filter the list down to the entries matching our whitelist/blacklist
+    # filter the list down to the entries matching our whitelist/blacklist
     fileList = [f for f in fileList if (wMatcher.search(f) and not bMatcher.search(f))]
     fileList.sort()
     filesLeft = copy.copy(fileList)
@@ -179,7 +179,7 @@ def doImport(directoryPath,
     SNAPSHOT_DICT['tablePrefix'] = tablePrefix
     SNAPSHOT_DICT['wList'] = whiteList
     SNAPSHOT_DICT['bList'] = blackList
-    #remove this directory from the "left to do" directories
+    # remove this directory from the "left to do" directories
     try:
         SNAPSHOT_DICT['dirsLeft'].remove(dirPath)
     except ValueError:
@@ -194,7 +194,6 @@ def doImport(directoryPath,
     currentDict['filesImported'] = filesImported
     currentDict['failedFiles'] = failedFiles
 
-
     _dumpDict(SNAPSHOT_DICT, SNAPSHOT_PATH)
     pathList = [os.path.join(dirPath, fileName) for fileName in fileList]
 
@@ -202,8 +201,8 @@ def doImport(directoryPath,
     LOGGER.info("Starting import of %s...", dirPath)
     for aPath in pathList:
         fName = os.path.basename(aPath)
-        #In order to keep supposedly "matching" warnings from being suppressed during future
-        #ingests, we need to clear the module's warning registry before each ingest
+        # In order to keep supposedly "matching" warnings from being suppressed during future
+        # ingests, we need to clear the module's warning registry before each ingest
         try:
             EPFIngester.__warningregistry__.clear()
         except AttributeError:
@@ -211,15 +210,15 @@ def doImport(directoryPath,
 
         try:
             ing = EPFIngester.Ingester(aPath,
-                tablePrefix=tablePrefix,
-                dbHost=dbHost,
-                dbUser=dbUser,
-                dbPassword=dbPassword,
-                dbName=dbName,
-                dbType=dbType,
-                recordDelim=recordDelim,
-                fieldDelim=fieldDelim)
-        except Exception, e:
+                                       tablePrefix=tablePrefix,
+                                       dbHost=dbHost,
+                                       dbUser=dbUser,
+                                       dbPassword=dbPassword,
+                                       dbName=dbName,
+                                       dbType=dbType,
+                                       recordDelim=recordDelim,
+                                       fieldDelim=fieldDelim)
+        except Exception as e:
             LOGGER.error("Unable to create EPFIngester for %s", fName)
             LOGGER.exception(e)
             failedFiles.append(fName)
@@ -231,7 +230,7 @@ def doImport(directoryPath,
             filesLeft.remove(fName)
             filesImported.append(fName)
             _dumpDict(SNAPSHOT_DICT, SNAPSHOT_PATH)
-        except (MySQLdb.Error, psycopg2.Error), e:
+        except (MySQLdb.Error, psycopg2.Error) as e:
             failedFiles.append(fName)
             _dumpDict(SNAPSHOT_DICT, SNAPSHOT_PATH)
             continue
@@ -240,24 +239,24 @@ def doImport(directoryPath,
     ts = str(endTime - startTime)
     dirName = os.path.basename(dirPath)
     LOGGER.info("Import of %s completed at: %s", dirName,
-        endTime.strftime(EPFIngester.DATETIME_FORMAT))
-    LOGGER.info("Total import time for %s: %s" , dirName, ts[:len(ts)-4])
+                endTime.strftime(EPFIngester.DATETIME_FORMAT))
+    LOGGER.info("Total import time for %s: %s", dirName, ts[:len(ts) - 4])
     if (failedFiles):
         LOGGER.warning("The following files encountered errors and were not imported:\n %s",
-            ", ".join(failedFiles))
+                       ", ".join(failedFiles))
     return failedFiles
 
 
 def resumeImport(currentDict,
-        tablePrefix=None,
-        dbHost='localhost',
-        dbUser='epfimporter',
-        dbPassword='epf123',
-        dbName='epf',
-        dbType='mysql',
-        skipKeyViolators=False,
-        recordDelim='\x02\n',
-        fieldDelim='\x01'):
+                 tablePrefix=None,
+                 dbHost='localhost',
+                 dbUser='epfimporter',
+                 dbPassword='epf123',
+                 dbName='epf',
+                 dbType='mysql',
+                 skipKeyViolators=False,
+                 recordDelim='\x02\n',
+                 fieldDelim='\x01'):
     """
     Resume an interrupted full import based on the values in currentDict, which will normally
     be the currentDict unarchived from the EPFSnapshot.json file.
@@ -266,21 +265,21 @@ def resumeImport(currentDict,
     filesLeft = currentDict['filesLeft']
     recordDelim = currentDict['recordSep']
     fieldDelim = currentDict['fieldSep']
-    wList = ["^%s$" % aFile for aFile in filesLeft] #anchor the regexes for exact matches
+    wList = ["^%s$" % aFile for aFile in filesLeft]  # anchor the regexes for exact matches
     filesImported = currentDict['filesImported']
-    bList = ["^%s$" % aFile for aFile in filesImported] #anchor the regexes for exact matches
+    bList = ["^%s$" % aFile for aFile in filesImported]  # anchor the regexes for exact matches
 
     failedFiles = doImport(dirPath,
-        tablePrefix=tablePrefix,
-        dbHost=dbHost,
-        dbUser=dbUser,
-        dbPassword=dbPassword,
-        dbName=dbName,
-        dbType=dbType,
-        whiteList=wList,
-        blackList=bList,
-        recordDelim=recordDelim,
-        fieldDelim=fieldDelim)
+                           tablePrefix=tablePrefix,
+                           dbHost=dbHost,
+                           dbUser=dbUser,
+                           dbPassword=dbPassword,
+                           dbName=dbName,
+                           dbType=dbType,
+                           whiteList=wList,
+                           blackList=bList,
+                           recordDelim=recordDelim,
+                           fieldDelim=fieldDelim)
     return failedFiles
 
 
@@ -300,89 +299,89 @@ def main():
     """
     Entry point for command-line execution
     """
-    #If the default config file doesn't exist, create it using these values.
+    # If the default config file doesn't exist, create it using these values.
     if not os.path.exists(CONFIG_PATH):
         defaultOptions = dict(dbHost='localhost',
-            dbUser='epfimporter',
-            dbPassword='epf123',
-            dbName='epf',
-            dbType='mysql',
-            allowExtensions=False,
-            tablePrefix='epf',
-            whiteList=[r'.*?'],
-            blackList=[r'^\.'],
-            recordSep='\x02\n',
-            fieldSep='\x01')
+                              dbUser='epfimporter',
+                              dbPassword='epf123',
+                              dbName='epf',
+                              dbType='mysql',
+                              allowExtensions=False,
+                              tablePrefix='epf',
+                              whiteList=[r'.*?'],
+                              blackList=[r'^\.'],
+                              recordSep='\x02\n',
+                              fieldSep='\x01')
         _dumpDict(defaultOptions, CONFIG_PATH)
-    #likewise for the EPF Flat config file
+    # likewise for the EPF Flat config file
     if not os.path.exists(FLAT_CONFIG_PATH):
         flatOptions = dict(dbHost='localhost',
-            dbUser='epfimporter',
-            dbPassword='epf123',
-            dbName='epf',
-            dbType='mysql',
-            allowExtensions=True,
-            tablePrefix='epfflat',
-            whiteList=[r'.*?'],
-            blackList=[r'^\.'],
-            recordSep='\n',
-            fieldSep='\t')
+                           dbUser='epfimporter',
+                           dbPassword='epf123',
+                           dbName='epf',
+                           dbType='mysql',
+                           allowExtensions=True,
+                           tablePrefix='epfflat',
+                           whiteList=[r'.*?'],
+                           blackList=[r'^\.'],
+                           recordSep='\n',
+                           fieldSep='\t')
         _dumpDict(flatOptions, FLAT_CONFIG_PATH)
 
-    #Command-line parsing
+    # Command-line parsing
     usage = """usage: %prog [-fxrak] [-D db_type] [-d db_host] [-u db_user] [-p db_password] [-n db_name]
     [-s record_separator] [-t field_separator] [-w regex [-w regex2 [...]]]
     [-b regex [-b regex2 [...]]] source_directory [source_directory2 ...]"""
 
     op = optparse.OptionParser(version="%prog " + VERSION, description=DESCRIPTION, usage=usage)
     op.add_option('-f', '--flat', action='store_true', dest='isFlat', default=False,
-        help="""Import EPF Flat files, using values from EPFFlat.config if not overridden""")
+                  help="""Import EPF Flat files, using values from EPFFlat.config if not overridden""")
     op.add_option('-r', '--resume', action='store_true', dest='isResume', default=False,
-        help="""Resume the most recent import according to the relevant .json status file (EPFStatusIncremental.json if -i, otherwise EPFStatusFull.json)""")
+                  help="""Resume the most recent import according to the relevant .json status file (EPFStatusIncremental.json if -i, otherwise EPFStatusFull.json)""")
     op.add_option('-d', '--dbhost', dest='dbHost',
-        help="""The hostname of the database (default is localhost)""")
+                  help="""The hostname of the database (default is localhost)""")
     op.add_option('-u', '--dbuser', dest='dbUser',
-        help="""The user which will execute the database commands; must have table create/drop priveleges""")
+                  help="""The user which will execute the database commands; must have table create/drop priveleges""")
     op.add_option('-p', '--dbpassword', dest='dbPassword',
-        help="""The user's password for the database""")
+                  help="""The user's password for the database""")
     op.add_option('-n', '--dbname', dest='dbName',
-        help="""The name of the database to connect to""")
+                  help="""The name of the database to connect to""")
     op.add_option('-D', '--dbtype', dest='dbType',
-        help="""The type of the database to connect to ('mysql' or 'postgresql')""")
+                  help="""The type of the database to connect to ('mysql' or 'postgresql')""")
     op.add_option('-s', '--recordseparator', dest='recordSep',
-        help="""The string separating records in the file""")
+                  help="""The string separating records in the file""")
     op.add_option('-t', '--fieldseparator', dest='fieldSep',
-        help="""The string separating fields in the file""")
+                  help="""The string separating fields in the file""")
     op.add_option('-a', '--allowextensions', action='store_true', dest='allowExtensions', default=False,
-        help="""Include files with dots in their names in the import""")
+                  help="""Include files with dots in their names in the import""")
     op.add_option('-x', '--tableprefix', dest='tablePrefix',
-        help="""Optional prefix which will be added to all table names, e.g. 'MyPrefix_video_translation'""")
+                  help="""Optional prefix which will be added to all table names, e.g. 'MyPrefix_video_translation'""")
     op.add_option('-w', '--whitelist', action='append', dest='whiteList',
-        help="""A regular expression to add to the whiteList; repeated -w arguments will append""")
+                  help="""A regular expression to add to the whiteList; repeated -w arguments will append""")
     op.add_option('-b', '--blacklist', action='append', dest='blackList',
-        help="""A regular expression to add to the whiteList; repeated -b arguments will append""")
+                  help="""A regular expression to add to the whiteList; repeated -b arguments will append""")
     op.add_option('-k', '--skipkeyviolators', action='store_true', dest='skipKeyViolators', default=False,
-        help="""Ignore inserts which would violate a primary key constraint; only applies to full imports""")
+                  help="""Ignore inserts which would violate a primary key constraint; only applies to full imports""")
 
-    (options, args) = op.parse_args() #parse command-line options
+    (options, args) = op.parse_args()  # parse command-line options
 
-    if not args and not options.isResume: #no directory args were given, and we're not in resume mode
+    if not args and not options.isResume:  # no directory args were given, and we're not in resume mode
         op.print_usage()
         sys.exit()
 
-    #roll over the log file, so each import has its own log
+    # roll over the log file, so each import has its own log
     for aHandler in LOGGER.handlers:
         try:
             aHandler.doRollover()
         except AttributeError:
-            pass #only the file handler has a doRollover() method
+            pass  # only the file handler has a doRollover() method
 
     configPath = (FLAT_CONFIG_PATH if options.isFlat else CONFIG_PATH)
     with open(configPath) as configFile:
         configDict = json.load(configFile)
 
-    #iterate through the options dict.
-    #For each entry which is None, replace it with the value from the config file
+    # iterate through the options dict.
+    # For each entry which is None, replace it with the value from the config file
     optDict = options.__dict__
     for aKey in optDict.keys():
         if (not optDict[aKey]) and (configDict.has_key(aKey)):
@@ -390,7 +389,7 @@ def main():
 
     failedFilesDict = {}
 
-    #bind these to locals here; they will be rebound later if this is a resume
+    # bind these to locals here; they will be rebound later if this is a resume
     dirsToImport = args
     tablePrefix = options.tablePrefix
     wList = options.whiteList
@@ -405,7 +404,7 @@ def main():
 
     startTime = datetime.datetime.now()
 
-    #call the appropriate import function
+    # call the appropriate import function
     if options.isResume:
         with open(SNAPSHOT_PATH, mode='r') as f:
             SNAPSHOT_DICT = json.load(f)
@@ -414,43 +413,43 @@ def main():
         LOGGER.info("Resuming import for %s", currentDict['dirPath'])
 
         failedFiles = resumeImport(currentDict,
-            tablePrefix=tablePrefix,
-            dbHost=options.dbHost,
-            dbUser=options.dbUser,
-            dbPassword=options.dbPassword,
-            dbName=options.dbName,
-            dbType=options.dbType,
-            skipKeyViolators=options.skipKeyViolators,
-            recordDelim=recordSep,
-            fieldDelim=fieldSep)
+                                   tablePrefix=tablePrefix,
+                                   dbHost=options.dbHost,
+                                   dbUser=options.dbUser,
+                                   dbPassword=options.dbPassword,
+                                   dbName=options.dbName,
+                                   dbType=options.dbType,
+                                   skipKeyViolators=options.skipKeyViolators,
+                                   recordDelim=recordSep,
+                                   fieldDelim=fieldSep)
         if failedFiles:
             dirName = os.path.basename(currentDict['dirPath'])
             failedFilesDict[dirName] = failedFiles
-        #We've finished with the directory that was interrupted; We'll now fall through to
-        #importing any directories we hadn't gotten to
+        # We've finished with the directory that was interrupted; We'll now fall through to
+        # importing any directories we hadn't gotten to
         dirsToImport = SNAPSHOT_DICT['dirsLeft']
         wList = SNAPSHOT_DICT['wList']
         bList = SNAPSHOT_DICT['bList']
 
-    #non-resume
+    # non-resume
     if dirsToImport:
         LOGGER.info("Beginning import for the following directories:\n    %s", "\n    ".join(dirsToImport))
         for dirPath in dirsToImport:
             dirName = os.path.basename(dirPath)
             LOGGER.info("Importing files in %s", dirPath)
             failedFiles = doImport(dirPath,
-                tablePrefix=tablePrefix,
-                dbHost=options.dbHost,
-                dbUser=options.dbUser,
-                dbPassword=options.dbPassword,
-                dbName=options.dbName,
-                dbType=options.dbType,
-                whiteList=wList,
-                blackList=bList,
-                allowExtensions=allowExtensions,
-                skipKeyViolators=options.skipKeyViolators,
-                recordDelim=recordSep,
-                fieldDelim=fieldSep)
+                                   tablePrefix=tablePrefix,
+                                   dbHost=options.dbHost,
+                                   dbUser=options.dbUser,
+                                   dbPassword=options.dbPassword,
+                                   dbName=options.dbName,
+                                   dbType=options.dbType,
+                                   whiteList=wList,
+                                   blackList=bList,
+                                   allowExtensions=allowExtensions,
+                                   skipKeyViolators=options.skipKeyViolators,
+                                   recordDelim=recordSep,
+                                   fieldDelim=fieldSep)
 
             if failedFiles:
                 failedFilesDict[dirName] = failedFiles
@@ -463,10 +462,9 @@ def main():
         failedString = "\n".join(failedList)
         LOGGER.warning("The following files encountered errors and were not imported:\n    %s", failedString)
 
-    LOGGER.info("Total import time for all directories: %s", ts[:len(ts)-4])
+    LOGGER.info("Total import time for all directories: %s", ts[:len(ts) - 4])
 
-#Execute
+
+# Execute
 if __name__ == "__main__":
     main()
-
-
