@@ -3,8 +3,8 @@
     "recordSep": "\u0002\n",
     "dbHost": "localhost",
     "dbName": "epf",
-    "dbUser": "epfimporter",
-    "dbPassword": "epf123",
+    "dbUser": "postgres",
+    "dbPassword": "EdMan2133",
     "tablePrefix": "epf",
     "allowExtensions": false,
     "blackList": [
