@@ -404,7 +404,7 @@ class Ingester(object):
             stringList = ["(%s)" % (", ".join(aRecord)) for aRecord in escapedRecords]
 
             cur = conn.cursor()
-            colVals = unicode(", ".join(stringList), 'utf-8')
+            colVals = ", ".join(stringList)
             exStr = exStrTemplate % (commandString, ignoreString, tableName, colNamesStr, colVals)
             # unquote NULLs
             exStr = exStr.replace("'NULL'", "NULL")
