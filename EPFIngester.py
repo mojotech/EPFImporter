@@ -47,38 +47,39 @@ DATETIME_FORMAT = "%y-%m-%d %H:%M:%S"
 
 LOGGER = logging.getLogger()
 
+
 class Ingester(object):
     """
     Used to ingest an EPF file into a MySQL database.
     """
-    #MySQLdb turns MySQL warnings into python warnings, whose behavior is somewhat arcane
-    #(as compared with python exceptions.
-    #By default, turn all warnings into exceptions
+    # MySQLdb turns MySQL warnings into python warnings, whose behavior is somewhat arcane
+    # (as compared with python exceptions.
+    # By default, turn all warnings into exceptions
     warnings.filterwarnings('error')
-    #Supress warnings that occur when we do a 'DROP TABLE IF EXISTS'; we expect these,
-    #so there's no point in cluttering up the output with them.
+    # Supress warnings that occur when we do a 'DROP TABLE IF EXISTS'; we expect these,
+    # so there's no point in cluttering up the output with them.
     warnings.filterwarnings('ignore', 'Unknown table.*')
 
     def __init__(self,
-            filePath,
-            tablePrefix=None,
-            dbHost='localhost',
-            dbUser='epfimporter',
-            dbPassword='epf123',
-            dbName='epf',
-            dbType='mysql',
-            recordDelim='\x02\n',
-            fieldDelim='\x01'):
+                 filePath,
+                 tablePrefix=None,
+                 dbHost='localhost',
+                 dbUser='epfimporter',
+                 dbPassword='epf123',
+                 dbName='epf',
+                 dbType='mysql',
+                 recordDelim='\x02\n',
+                 fieldDelim='\x01'):
         """
         """
         self.filePath = filePath
         self.fileName = os.path.basename(filePath)
         pref = ("%s_" % tablePrefix if tablePrefix else "")
-        self.tableName = (pref + self.fileName).replace("-", "_") #hyphens aren't allowed in table names
+        self.tableName = (pref + self.fileName).replace("-", "_")  # hyphens aren't allowed in table names
         self.tableName = self.tableName.split(".")[0]
         self.tmpTableName = self.tableName + "_tmp"
-        self.incTableName = self.tableName + "_inc" #used during incremental ingests
-        self.unionTableName = self.tableName + "_un" #used during incremental ingests
+        self.incTableName = self.tableName + "_inc"  # used during incremental ingests
+        self.unionTableName = self.tableName + "_un"  # used during incremental ingests
         self.dbHost = dbHost
         self.dbUser = dbUser
         self.dbPassword = dbPassword
@@ -88,7 +89,10 @@ class Ingester(object):
         self.isMysql = (dbType == "mysql")
         self.lastRecordIngested = -1
         if self.isPostgresql:
-            self.parser = EPFParser.Parser(filePath, typeMap={"VARCHAR(1000)":"TEXT", "VARCHAR(4000)":"TEXT", "CLOB":"LONGTEXT", "DATETIME":"TIMESTAMP", "LONGTEXT":"TEXT"}, recordDelim=recordDelim, fieldDelim=fieldDelim)
+            self.parser = EPFParser.Parser(filePath, typeMap={"VARCHAR(1000)": "TEXT", "VARCHAR(4000)": "TEXT",
+                                                              "CLOB": "LONGTEXT", "DATETIME": "TIMESTAMP",
+                                                              "LONGTEXT": "TEXT"}, recordDelim=recordDelim,
+                                           fieldDelim=fieldDelim)
         else:
             self.parser = EPFParser.Parser(filePath, recordDelim=recordDelim, fieldDelim=fieldDelim)
         self.startTime = None
@@ -100,7 +104,6 @@ class Ingester(object):
         self.lastRecordCheck = 0
         self.lastTimeCheck = datetime.datetime.now()
 
-
     def updateStatusDict(self):
         self.statusDict['fileName'] = self.fileName
         self.statusDict['filePath'] = self.filePath
@@ -110,7 +113,6 @@ class Ingester(object):
         self.statusDict['abortTime'] = (str(self.abortTime) if self.abortTime else None)
         self.statusDict['didAbort'] = self.didAbort
 
-
     def ingest(self, skipKeyViolators=False):
         """
         Perform a full or incremental ingest, depending on self.parser.exportMode
@@ -119,7 +121,6 @@ class Ingester(object):
             self.ingestIncremental(skipKeyViolators=skipKeyViolators)
         else:
             self.ingestFull(skipKeyViolators=skipKeyViolators)
-
 
     def ingestFull(self, skipKeyViolators=False):
         """
@@ -142,12 +143,11 @@ class Ingester(object):
             self.abortTime = datetime.datetime.now()
             self.didAbort = True
             self.updateStatusDict()
-            raise #re-raise the exception
-        #ingest completed
+            raise  # re-raise the exception
+        # ingest completed
         self.endTime = datetime.datetime.now()
         self.updateStatusDict()
         LOGGER.info("Full ingest of %s took %s", self.tableName, str(self.endTime - self.startTime))
-
 
     def ingestFullResume(self, fromRecord=0, skipKeyViolators=False):
         """
@@ -160,14 +160,13 @@ class Ingester(object):
             self._populateTable(self.tmpTableName, resumeNum=fromRecord, skipKeyViolators=skipKeyViolators)
             self._renameAndDrop(self.tmpTableName, self.tableName)
         except (MySQLdb.Error, psycopg2.Error) as e:
-            #LOGGER.error("Error %d: %s", e.args[0], e.args[1])
+            # LOGGER.error("Error %d: %s", e.args[0], e.args[1])
             LOGGER.error("Error encountered while ingesting '%s'", self.filePath)
             LOGGER.error("Last record ingested before failure: %d", self.lastRecordIngested)
-            raise #re-raise the exception
+            raise  # re-raise the exception
         endTime = datetime.datetime.now()
         ts = str(self.endTime - self.startTime)
-        LOGGER.info("Resumed full ingest of %s took %s", self.tableName, ts[:len(ts)-4])
-
+        LOGGER.info("Resumed full ingest of %s took %s", self.tableName, ts[:len(ts) - 4])
 
     def ingestIncremental(self, fromRecord=0, skipKeyViolators=False):
         """
@@ -183,34 +182,34 @@ class Ingester(object):
         This proves to be much faster for large files.
         """
         if not (self.tableExists(self.tableName)):
-            #The table doesn't exist in the db; this can happen if the full ingest
-            #in which the table was added wasn't performed.
+            # The table doesn't exist in the db; this can happen if the full ingest
+            # in which the table was added wasn't performed.
             LOGGER.warn("Table '%s' does not exist in the database; skipping", self.tableName)
         else:
             tableColCount = self.columnCount()
             fileColCount = len(self.parser.columnNames)
-            assert (tableColCount <= fileColCount) #It's possible for the existing table
-            #to have fewer columns than the file we're importing, but it should never have more.
+            assert (tableColCount <= fileColCount)  # It's possible for the existing table
+            # to have fewer columns than the file we're importing, but it should never have more.
 
-            if fileColCount > tableColCount: #file has "extra" columns
+            if fileColCount > tableColCount:  # file has "extra" columns
                 LOGGER.warn("File contains additional columns not in the existing table. These will not be imported.")
-                self.parser.columnNames = self.parser.columnNames[:tableColCount] #trim the columnNames
+                self.parser.columnNames = self.parser.columnNames[:tableColCount]  # trim the columnNames
                 # to equal those in the existing table. This will result in the returned records
                 # also being sliced.
             s = ("Resuming" if fromRecord else "Beginning")
             LOGGER.info("%s incremental ingest of %s (%i records)", s, self.tableName, self.parser.recordsExpected)
             self.startTime = datetime.datetime.now()
 
-            #Different ingest techniques are faster depending on the size of the input.
-            #If there are a large number of records, it's much faster to do a prune-and-merge technique;
-            #for fewer records, it's faster to update the existing table.
+            # Different ingest techniques are faster depending on the size of the input.
+            # If there are a large number of records, it's much faster to do a prune-and-merge technique;
+            # for fewer records, it's faster to update the existing table.
             try:
-                if self.parser.recordsExpected < 500000: #update table in place
+                if self.parser.recordsExpected < 500000:  # update table in place
                     self._populateTable(self.tableName,
-                                    resumeNum=fromRecord,
-                                    isIncremental=True,
-                                    skipKeyViolators=skipKeyViolators)
-                else: #Import as full, then merge the proper records into a new table
+                                        resumeNum=fromRecord,
+                                        isIncremental=True,
+                                        skipKeyViolators=skipKeyViolators)
+                else:  # Import as full, then merge the proper records into a new table
                     self._createTable(self.incTableName)
                     LOGGER.info("Populating temporary table...")
                     self._populateTable(self.incTableName, skipKeyViolators=skipKeyViolators)
@@ -222,19 +221,18 @@ class Ingester(object):
                     self._renameAndDrop(self.unionTableName, self.tableName)
 
             except (MySQLdb.Error, psycopg2.Error) as e:
-                #LOGGER.error("Error %d: %s", e.args[0], e.args[1])
+                # LOGGER.error("Error %d: %s", e.args[0], e.args[1])
                 LOGGER.error("Fatal error encountered while ingesting '%s'", self.filePath)
                 LOGGER.error("Last record ingested before failure: %d", self.lastRecordIngested)
                 self.abortTime = datetime.datetime.now()
                 self.didAbort = True
                 self.updateStatusDict()
-                raise #re-raise the exception
-            #ingest completed
+                raise  # re-raise the exception
+            # ingest completed
             self.endTime = datetime.datetime.now()
             ts = str(self.endTime - self.startTime)
-            LOGGER.info("Incremental ingest of %s took %s", self.tableName, ts[:len(ts)-4])
+            LOGGER.info("Incremental ingest of %s took %s", self.tableName, ts[:len(ts) - 4])
         self.updateStatusDict()
-
 
     def connect(self):
         """
@@ -256,7 +254,6 @@ class Ingester(object):
 
         return conn
 
-
     def tableExists(self, tableName=None, connection=None):
         """
         Convenience method which returns True if tableName exists in the db, False if not.
@@ -275,13 +272,12 @@ class Ingester(object):
         conn = (connection if connection else self.connect())
         cur = conn.cursor()
         cur.execute(exStr, (self.dbName, tableName))
-        fet = cur.fetchone() #this will always be a 1-tuple; the items's value will be 0 or 1
+        fet = cur.fetchone()  # this will always be a 1-tuple; the items's value will be 0 or 1
         doesExist = bool(fet[0])
         cur.close()
         if not connection:
             conn.close()
         return doesExist
-
 
     def columnCount(self, tableName=None, connection=None):
         """
@@ -296,13 +292,12 @@ class Ingester(object):
         conn = (connection if connection else self.connect())
         cur = conn.cursor()
         exStr = """SHOW COLUMNS FROM %s""" % tableName
-        colCount = cur.execute(exStr) #cur.execute() returns the number of rows,
+        colCount = cur.execute(exStr)  # cur.execute() returns the number of rows,
         # which for SHOW COLUMNS is the number of columns in the table
         cur.close()
         if not connection:
             conn.close()
         return colCount
-
 
     def _createTable(self, tableName):
         """
@@ -313,19 +308,18 @@ class Ingester(object):
         conn = self.connect()
         cur = conn.cursor()
         cur.execute("""DROP TABLE IF EXISTS %s""" % tableName)
-        #create the column name part of the table creation string
+        # create the column name part of the table creation string
         colPairs = zip(self.parser.columnNames, self.parser.dataTypes)
-        lst = [" ".join(aPair) for aPair in colPairs] #list comprehension
+        lst = [" ".join(aPair) for aPair in colPairs]  # list comprehension
         paramStr = ",".join(lst)
-        #paramString now looks like "export_date BIGINT, storefront_id INT, country_code VARCHAR(100)" etc.
+        # paramString now looks like "export_date BIGINT, storefront_id INT, country_code VARCHAR(100)" etc.
         exStr = """CREATE TABLE %s (%s)""" % (tableName, paramStr)
-        cur.execute(exStr) #create the table in the database
-        #set the primary key
+        cur.execute(exStr)  # create the table in the database
+        # set the primary key
         if self.isPostgresql:
             conn.commit()
         conn.close()
         self._applyPrimaryKeyConstraints(tableName)
-
 
     def _applyPrimaryKeyConstraints(self, tableName):
         """
@@ -345,7 +339,6 @@ class Ingester(object):
             if self.isPostgresql:
                 conn.commit()
             conn.close()
-
 
     def _escapeRecords(self, recordList, connection=None):
         """
@@ -370,7 +363,6 @@ class Ingester(object):
             escapedRecords.append(escRec)
         return escapedRecords
 
-
     def _populateTable(self, tableName, resumeNum=0, isIncremental=False, skipKeyViolators=False):
         """
         Populate tableName with data fetched by the parser, first advancing to resumePos.
@@ -378,13 +370,13 @@ class Ingester(object):
         For Full imports, if skipKeyViolators is True, any insertions which would violate the primary key constraint
         will be skipped and won't log errors.
         """
-        #REPLACE is a MySQL extension which inserts if the key is new, or deletes and inserts if the key is a duplicate
+        # REPLACE is a MySQL extension which inserts if the key is new, or deletes and inserts if the key is a duplicate
         commandString = ("REPLACE" if (isIncremental and self.isMysql) else "INSERT")
         ignoreString = ("IGNORE" if (skipKeyViolators and not isIncremental and self.isMysql) else "")
         exStrTemplate = """%s %s INTO %s %s VALUES %s"""
         colNamesStr = "(%s)" % (", ".join(self.parser.columnNames))
 
-        self.parser.seekToRecord(resumeNum) #advance to resumeNum
+        self.parser.seekToRecord(resumeNum)  # advance to resumeNum
         conn = self.connect()
         if self.isPostgresql:
             cur = conn.cursor()
@@ -401,20 +393,20 @@ class Ingester(object):
             cur.execute(exStr)
 
         while (True):
-            #By default, we concatenate 200 inserts into a single INSERT statement.
-            #a large batch size per insert improves performance, until you start hitting max_packet_size issues.
-            #If you increase MySQL server's max_packet_size, you may get increased performance by increasing maxNum
+            # By default, we concatenate 200 inserts into a single INSERT statement.
+            # a large batch size per insert improves performance, until you start hitting max_packet_size issues.
+            # If you increase MySQL server's max_packet_size, you may get increased performance by increasing maxNum
             records = self.parser.nextRecords(maxNum=200)
             if (not records):
                 break
 
-            escapedRecords = self._escapeRecords(records) #This will sanitize the records
+            escapedRecords = self._escapeRecords(records)  # This will sanitize the records
             stringList = ["(%s)" % (", ".join(aRecord)) for aRecord in escapedRecords]
 
             cur = conn.cursor()
             colVals = unicode(", ".join(stringList), 'utf-8')
             exStr = exStrTemplate % (commandString, ignoreString, tableName, colNamesStr, colVals)
-            #unquote NULLs
+            # unquote NULLs
             exStr = exStr.replace("'NULL'", "NULL")
             exStr = exStr.replace("'null'", "NULL")
 
@@ -423,11 +415,11 @@ class Ingester(object):
             except (MySQLdb.Warning, psycopg2.Warning) as e:
                 LOGGER.warning(str(e))
             except (MySQLdb.IntegrityError, psycopg2.IntegrityError) as e:
-            #This is likely a primary key constraint violation; should only be hit if skipKeyViolators is False
+                # This is likely a primary key constraint violation; should only be hit if skipKeyViolators is False
                 LOGGER.error(str(e))
             except (MySQLdb.Error, psycopg2.Error) as e:
                 LOGGER.error("error executing %s" % exStr)
-                raise #re-raise the exception
+                raise  # re-raise the exception
             self.lastRecordIngested = self.parser.latestRecordNum
             recCheck = self._checkProgress()
             if recCheck:
@@ -442,7 +434,6 @@ class Ingester(object):
             conn.commit()
 
         conn.close()
-
 
     def _checkProgress(self, recordGap=5000, timeGap=datetime.timedelta(0, 120, 0)):
         """
@@ -459,7 +450,6 @@ class Ingester(object):
                 return self.lastRecordCheck
         return None
 
-
     def _dropTable(self, tableName):
         """A convenience method that just connects, drops tableName if it exists, and disconnects"""
         conn = self.connect()
@@ -469,7 +459,6 @@ class Ingester(object):
             conn.commit()
         conn.close()
 
-
     def _renameAndDrop(self, sourceTable, targetTable):
         """
         Temporarily rename targetTable, then rename sourceTable to targetTable.
@@ -478,7 +467,7 @@ class Ingester(object):
         conn = self.connect()
         cur = conn.cursor()
         revert = False
-        #first, rename the existing "real" table, so we can restore it if something goes wrong
+        # first, rename the existing "real" table, so we can restore it if something goes wrong
         targetOld = targetTable + "_old"
         cur.execute("""DROP TABLE IF EXISTS %s""" % targetOld)
         if self.isMysql:
@@ -489,12 +478,12 @@ class Ingester(object):
         if (self.tableExists(targetTable, connection=conn)):
             cur.execute(exStr % ("TABLE", targetTable, targetOld))
             if self.isPostgresql:
-                cur.execute(exStr % ("INDEX", targetTable+'_pk', targetOld+'_pk'))
-        #now rename the new table to replace the old table
+                cur.execute(exStr % ("INDEX", targetTable + '_pk', targetOld + '_pk'))
+        # now rename the new table to replace the old table
         try:
             cur.execute(exStr % ("TABLE", sourceTable, targetTable))
             if self.isPostgresql:
-                cur.execute(exStr % ("INDEX", sourceTable+'_pk', targetTable+'_pk'))
+                cur.execute(exStr % ("INDEX", sourceTable + '_pk', targetTable + '_pk'))
         except MySQLdb.Error as e:
             LOGGER.error("Error %d: %s", e.args[0], e.args[1])
             revert = True
@@ -507,14 +496,13 @@ class Ingester(object):
             if (self.tableExists(targetOld, connection=conn)):
                 cur.execute(exStr % ("TABLE", targetOld, targetTable))
                 if self.isPostgresql:
-                    cur.execute(exStr % ("INDEX", targetOld+'_pk', targetTable+'_pk'))
-        #Drop sourceTable so it's not hanging around
-        #drop the old table
+                    cur.execute(exStr % ("INDEX", targetOld + '_pk', targetTable + '_pk'))
+        # Drop sourceTable so it's not hanging around
+        # drop the old table
         cur.execute("""DROP TABLE IF EXISTS %s""" % targetOld)
         if self.isPostgresql:
             conn.commit()
         conn.close()
-
 
     def _createUnionTable(self):
         """
@@ -530,7 +518,6 @@ class Ingester(object):
             conn.commit()
         conn.close()
 
-
     def _incrementalWhereClause(self):
         """
         Creates and returns the appropriate WHERE clause string used when pruning the target table
@@ -539,9 +526,9 @@ class Ingester(object):
         pCols = self.parser.primaryKey
         substrings = ["%s.%s=%s.%s" % (self.tableName, aCol, self.incTableName, aCol) for aCol in pCols]
         joinedString = " AND ".join(substrings)
-        whereClause = "WHERE %s.export_date <= %s.export_date AND %s" % (self.tableName, self.incTableName, joinedString)
+        whereClause = "WHERE %s.export_date <= %s.export_date AND %s" % (
+        self.tableName, self.incTableName, joinedString)
         return whereClause
-
 
     def _incrementalSelectString(self):
         """
@@ -550,9 +537,8 @@ class Ingester(object):
         """
         whereClause = self._incrementalWhereClause()
         selectString = ("SELECT * FROM %s WHERE 0 = (SELECT COUNT(*) FROM %s %s)" %
-            (self.tableName, self.incTableName, whereClause))
+                        (self.tableName, self.incTableName, whereClause))
         return selectString
-
 
     def _incrementalUnionString(self):
         """
