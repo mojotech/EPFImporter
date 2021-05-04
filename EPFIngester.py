@@ -136,7 +136,7 @@ class Ingester(object):
             self._createTable(self.tmpTableName)
             self._populateTable(self.tmpTableName, skipKeyViolators=skipKeyViolators)
             self._renameAndDrop(self.tmpTableName, self.tableName)
-        except (MySQLdb.Error, psycopg2.Error), e:
+        except (MySQLdb.Error, psycopg2.Error):
             LOGGER.exception("Fatal error encountered while ingesting '%s'", self.filePath)
             LOGGER.error("Last record ingested before failure: %d", self.lastRecordIngested)
             self.abortTime = datetime.datetime.now()
@@ -159,7 +159,7 @@ class Ingester(object):
         try:
             self._populateTable(self.tmpTableName, resumeNum=fromRecord, skipKeyViolators=skipKeyViolators)
             self._renameAndDrop(self.tmpTableName, self.tableName)
-        except (MySQLdb.Error, psycopg2.Error), e:
+        except (MySQLdb.Error, psycopg2.Error):
             #LOGGER.error("Error %d: %s", e.args[0], e.args[1])
             LOGGER.error("Error encountered while ingesting '%s'", self.filePath)
             LOGGER.error("Last record ingested before failure: %d", self.lastRecordIngested)
@@ -221,7 +221,7 @@ class Ingester(object):
                     self._applyPrimaryKeyConstraints(self.unionTableName)
                     self._renameAndDrop(self.unionTableName, self.tableName)
 
-            except (MySQLdb.Error, psycopg2.Error), e:
+            except (MySQLdb.Error, psycopg2.Error):
                 #LOGGER.error("Error %d: %s", e.args[0], e.args[1])
                 LOGGER.error("Fatal error encountered while ingesting '%s'", self.filePath)
                 LOGGER.error("Last record ingested before failure: %d", self.lastRecordIngested)
@@ -420,12 +420,12 @@ class Ingester(object):
 
             try:
                 cur.execute(exStr)
-            except (MySQLdb.Warning, psycopg2.Warning), e:
+            except (MySQLdb.Warning, psycopg2.Warning) as e:
                 LOGGER.warning(str(e))
-            except (MySQLdb.IntegrityError, psycopg2.IntegrityError), e:
+            except (MySQLdb.IntegrityError, psycopg2.IntegrityError) as e:
             #This is likely a primary key constraint violation; should only be hit if skipKeyViolators is False
                 LOGGER.error(str(e))
-            except (MySQLdb.Error, psycopg2.Error), e:
+            except (MySQLdb.Error, psycopg2.Error):
                 LOGGER.error("error executing %s" % exStr)
                 raise #re-raise the exception
             self.lastRecordIngested = self.parser.latestRecordNum
@@ -495,10 +495,10 @@ class Ingester(object):
             cur.execute(exStr % ("TABLE", sourceTable, targetTable))
             if self.isPostgresql:
                 cur.execute(exStr % ("INDEX", sourceTable+'_pk', targetTable+'_pk'))
-        except MySQLdb.Error, e:
+        except MySQLdb.Error as e:
             LOGGER.error("Error %d: %s", e.args[0], e.args[1])
             revert = True
-        except psycopg2.Error, e:
+        except psycopg2.Error as e:
             LOGGER.error("Error %s", e)
             revert = True
 

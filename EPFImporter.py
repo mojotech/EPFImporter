@@ -79,7 +79,7 @@ SNAPSHOT_DICT = {"tablePrefix":None, "dirsToImport":[], "dirsLeft":[], "currentD
 #Create a directory for rotating logs
 try:
     os.mkdir("EPFLogs")
-except OSError, e:
+except OSError as e:
     if e.errno == errno.EEXIST:
         pass
 
@@ -216,7 +216,7 @@ def doImport(directoryPath,
                 dbType=dbType,
                 recordDelim=recordDelim,
                 fieldDelim=fieldDelim)
-        except Exception, e:
+        except Exception as e:
             LOGGER.error("Unable to create EPFIngester for %s", fName)
             LOGGER.exception(e)
             failedFiles.append(fName)
@@ -228,7 +228,8 @@ def doImport(directoryPath,
             filesLeft.remove(fName)
             filesImported.append(fName)
             _dumpDict(SNAPSHOT_DICT, SNAPSHOT_PATH)
-        except (MySQLdb.Error, psycopg2.Error), e:
+        except (MySQLdb.Error, psycopg2.Error) as e:
+            LOGGER.error(e)
             failedFiles.append(fName)
             _dumpDict(SNAPSHOT_DICT, SNAPSHOT_PATH)
             continue

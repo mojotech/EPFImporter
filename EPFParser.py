@@ -229,7 +229,7 @@ class Parser(object):
             ix = rowString.find(requiredPrefix)
             if (ix != 0):
                 expl = "Required prefix '%s' was not found in '%s'" % (requiredPrefix, rowString)
-                raise SubstringNotFoundException, expl
+                raise SubstringNotFoundException(expl)
             rowString = rowString.partition(requiredPrefix)[2]
         str = rowString.partition(self.recordDelim)[0]
         return str.split(self.fieldDelim)
