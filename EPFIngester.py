@@ -36,7 +36,7 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import EPFParser
-import MySQLdb
+import pymysql as MySQLdb
 import psycopg2
 import os
 import datetime

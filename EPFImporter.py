@@ -41,7 +41,7 @@ from __future__ import with_statement
 import logging
 import logging.handlers
 import EPFIngester
-import MySQLdb
+import pymysql as MySQLdb
 import psycopg2
 import os
 import sys
