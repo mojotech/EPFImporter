@@ -38,8 +38,6 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import with_statement
-import logging
-import logging.handlers
 import EPFIngester
 import pymysql as MySQLdb
 import psycopg2
@@ -54,7 +52,6 @@ except ImportError:
 import copy
 import optparse
 import ConfigParser
-import logging
 import logging.config
 import errno
 
