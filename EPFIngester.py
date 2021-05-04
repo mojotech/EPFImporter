@@ -267,9 +267,14 @@ class Ingester(object):
         if not, it creates one using connect(), uses it, and then closes it.
         """
 
-        exStr = """SELECT COUNT(*) FROM information_schema.tables
-                    WHERE table_schema = %s
-                    AND table_name = %s"""
+        if self.isPostgresql:
+            exStr = """SELECT COUNT(*) FROM information_schema.tables
+                                WHERE table_catalog = %s
+                                AND table_name = %s"""
+        else:
+            exStr = """SELECT COUNT(*) FROM information_schema.tables
+                                WHERE table_schema = %s
+                                AND table_name = %s"""
 
         tableName = (tableName if tableName else self.tableName)
         conn = (connection if connection else self.connect())
@@ -295,7 +300,12 @@ class Ingester(object):
         tableName = (tableName if tableName else self.tableName)
         conn = (connection if connection else self.connect())
         cur = conn.cursor()
-        exStr = """SHOW COLUMNS FROM %s""" % tableName
+
+        if self.isPostgresql:
+            exStr = """SELECT COUNT(column_name) FROM information_schema.columns WHERE table_name = '%s'""" % tableName
+        else:
+            exStr = """SHOW COLUMNS FROM %s""" % tableName
+
         colCount = cur.execute(exStr) #cur.execute() returns the number of rows,
         # which for SHOW COLUMNS is the number of columns in the table
         cur.close()
@@ -524,7 +534,12 @@ class Ingester(object):
         conn = self.connect()
         cur = conn.cursor()
         cur.execute("""DROP TABLE IF EXISTS %s""" % self.unionTableName)
-        exStr = """CREATE TABLE %s %s""" % (self.unionTableName, self._incrementalUnionString())
+
+        if self.isPostgresql:
+            exStr = """CREATE TABLE %s AS %s""" % (self.unionTableName, self._incrementalUnionString())
+        else:
+            exStr = """CREATE TABLE %s %s""" % (self.unionTableName, self._incrementalUnionString())
+
         cur.execute(exStr)
         if self.isPostgresql:
             conn.commit()
@@ -562,5 +577,8 @@ class Ingester(object):
         The ingest and pruning process should preclude any dupes, so we can use ALL, which should be faster.
         """
         selectString = self._incrementalSelectString()
-        unionString = "IGNORE SELECT * FROM %s UNION ALL %s" % (self.incTableName, selectString)
+        if self.isPostgresql:
+            unionString = "SELECT * FROM %s UNION ALL %s" % (self.incTableName, selectString)
+        else:
+            unionString = "IGNORE SELECT * FROM %s UNION ALL %s" % (self.incTableName, selectString)
         return unionString
