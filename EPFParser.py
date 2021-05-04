@@ -116,7 +116,9 @@ class Parser(object):
                 self.primaryKey = self.splitRow(aRow, requiredPrefix=primStart)
                 self.primaryKey = ([] if self.primaryKey == [''] else self.primaryKey)
             elif aRow.startswith(dtStart):
-                self.dataTypes = self.splitRow(aRow, requiredPrefix=dtStart)
+                dts = self.splitRow(aRow, requiredPrefix=dtStart)
+                # HACK doing terrible things to make the retail_price column big enough
+                self.dataTypes = ['DECIMAL(11,3)' if dt == 'DECIMAL(9,3)' else dt for dt in dts]
             elif aRow.startswith(exStart):
                 self.exportMode = self.splitRow(aRow, requiredPrefix=exStart)[0]
         self.eFile.seek(0, os.SEEK_SET) #seek back to the beginning
