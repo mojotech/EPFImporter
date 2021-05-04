@@ -424,9 +424,17 @@ class Ingester(object):
             cur = conn.cursor()
             colVals = unicode(", ".join(stringList), 'utf-8')
             exStr = exStrTemplate % (commandString, ignoreString, tableName, colNamesStr, colVals)
-            #unquote NULLs
-            exStr = exStr.replace("'NULL'", "NULL")
-            exStr = exStr.replace("'null'", "NULL")
+            # unquote NULLs
+            # We have to go through all those cases separately, because some strings may contain
+            # a single quote and null, e.g. artist named D'null
+            exStr = exStr.replace("('NULL')", "(NULL)")
+            exStr = exStr.replace("('NULL',", "(NULL,")
+            exStr = exStr.replace(", 'NULL')", ", NULL)")
+            exStr = exStr.replace(", 'NULL',", ", NULL,")
+            exStr = exStr.replace("('null')", "(NULL)")
+            exStr = exStr.replace("('null',", "(NULL,")
+            exStr = exStr.replace(", 'null')", ", NULL)")
+            exStr = exStr.replace(", 'null',", ", NULL,")
 
             try:
                 cur.execute(exStr)
