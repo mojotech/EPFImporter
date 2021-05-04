@@ -2,3 +2,5 @@
 /EPFLogs/
 EPFSnapshot.json
 *.pyc
+/EPFImporter.egg-info/
+/dist/
